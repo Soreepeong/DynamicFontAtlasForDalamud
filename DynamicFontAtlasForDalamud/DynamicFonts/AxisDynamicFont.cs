@@ -8,7 +8,7 @@ using Dalamud.Interface.GameFonts;
 using DynamicFontAtlasLib.EasyFonts;
 using DynamicFontAtlasLib.Utilities.ImGuiUtilities;
 
-namespace DynamicFontAtlasLib.OnDemandFonts;
+namespace DynamicFontAtlasLib.DynamicFonts;
 
 internal unsafe class AxisDynamicFont : DynamicFont {
     public AxisDynamicFont(

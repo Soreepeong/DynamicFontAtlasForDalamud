@@ -3,7 +3,7 @@ using System.Buffers;
 using SharpDX;
 using SharpDX.DirectWrite;
 
-namespace DynamicFontAtlasLib.OnDemandFonts.DirectWriteHelpers;
+namespace DynamicFontAtlasLib.DynamicFonts.DirectWriteHelpers;
 
 internal class MemoryFontFileStream : CallbackBase, FontFileStream {
     private readonly Memory<byte> memory;

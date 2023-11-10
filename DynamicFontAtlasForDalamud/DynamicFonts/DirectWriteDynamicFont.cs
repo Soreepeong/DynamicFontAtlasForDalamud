@@ -4,8 +4,8 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using DynamicFontAtlasLib.DynamicFonts.DirectWriteHelpers;
 using DynamicFontAtlasLib.EasyFonts;
-using DynamicFontAtlasLib.OnDemandFonts.DirectWriteHelpers;
 using DynamicFontAtlasLib.Utilities;
 using DynamicFontAtlasLib.Utilities.ImGuiUtilities;
 using SharpDX.Direct2D1;
@@ -15,7 +15,7 @@ using Factory3 = SharpDX.DirectWrite.Factory3;
 using TextAntialiasMode = SharpDX.DirectWrite.TextAntialiasMode;
 using UnicodeRange = System.Text.Unicode.UnicodeRange;
 
-namespace DynamicFontAtlasLib.OnDemandFonts;
+namespace DynamicFontAtlasLib.DynamicFonts;
 
 internal class DirectWriteDynamicFont : DynamicFont {
     private const MeasuringMode MeasuringMode = SharpDX.Direct2D1.MeasuringMode.GdiNatural;
@@ -43,7 +43,7 @@ internal class DirectWriteDynamicFont : DynamicFont {
             this.font = this.disposeStack.Add(font.QueryInterface<Font>());
             this.face = this.disposeStack.Add(new FontFace(this.font));
             using (var renderingParams = this.disposeStack.Add(new RenderingParams(this.factory)))
-                this.renderMode = face.GetRecommendedRenderingMode(this.sizePt, 1, MeasuringMode, renderingParams);
+                this.renderMode = this.face.GetRecommendedRenderingMode(this.sizePt, 1, MeasuringMode, renderingParams);
 
             this.Ident = ident;
             this.Metrics = this.face.Metrics;
@@ -188,7 +188,7 @@ internal class DirectWriteDynamicFont : DynamicFont {
                     this.factory3.CreateGlyphRunAnalysis(
                         glyphRun,
                         null,
-                        renderMode,
+                        this.renderMode,
                         MeasuringMode,
                         GridFitMode,
                         TextAntialiasMode.Grayscale,
@@ -201,7 +201,7 @@ internal class DirectWriteDynamicFont : DynamicFont {
                         this.factory,
                         glyphRun,
                         1f,
-                        renderMode,
+                        this.renderMode,
                         MeasuringMode,
                         0f,
                         0f);

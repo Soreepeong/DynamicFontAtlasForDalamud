@@ -1,7 +1,7 @@
 using SharpDX;
 using SharpDX.DirectWrite;
 
-namespace DynamicFontAtlasLib.OnDemandFonts.DirectWriteHelpers;
+namespace DynamicFontAtlasLib.DynamicFonts.DirectWriteHelpers;
 
 internal class MemoryFontFileEnumerator : CallbackBase, FontFileEnumerator {
     private readonly Factory factory;
@@ -31,7 +31,7 @@ internal class MemoryFontFileEnumerator : CallbackBase, FontFileEnumerator {
             tmp[0] = MemoryFontLoader.Signature;
             tmp[1] = this.loader.InstanceCounter;
             tmp[2] = (ulong)this.index;
-            return new(this.factory, (nint)tmp, 24, loader);
+            return new(this.factory, (nint)tmp, 24, this.loader);
         }
     }
 }

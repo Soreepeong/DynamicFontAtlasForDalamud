@@ -10,8 +10,8 @@ using Dalamud.Interface.GameFonts;
 using Dalamud.Interface.Internal;
 using Dalamud.Interface.Utility;
 using Dalamud.Plugin.Services;
+using DynamicFontAtlasLib.DynamicFonts;
 using DynamicFontAtlasLib.EasyFonts;
-using DynamicFontAtlasLib.OnDemandFonts;
 using DynamicFontAtlasLib.Utilities;
 using DynamicFontAtlasLib.Utilities.ImGuiUtilities;
 using ImGuiNET;
@@ -285,37 +285,8 @@ public sealed unsafe class DynamicFontAtlas : IDisposable {
     /// <param name="sizePx">Font size in pixels.</param>
     /// <returns>An <see cref="IDisposable"/> that will make it pop the font on dispose.</returns>
     /// <remarks>It will return null on failure, and exception will be stored in <see cref="FailedIdents"/>.</remarks>
-    public IDisposable? PushFontScoped(in FontIdent ident, float sizePx) {
-        if (this.IsDisposed)
-            return null;
-
-        sizePx *= ImGuiHelpers.GlobalScale;
-
-        if (!(sizePx > 0))
-            return null;
-
-        if (this.failedIdents.TryGetValue((ident, (int)MathF.Round(sizePx)), out _))
-            return null;
-
-        var wrapper = this.GetDynamicFont(ident, (int)MathF.Round(sizePx));
-        try {
-            ImGui.PushFont(wrapper.FontPtr);
-        } catch {
-            return null;
-        }
-
-        this.suppressTextureUpdateCounter++;
-        return Disposable.Create(
-            () =>
-            {
-                ImGui.PopFont();
-                if (--this.suppressTextureUpdateCounter == 0)
-                    this.UpdateTextures();
-#if DEBUG
-                wrapper.SanityCheck();
-#endif
-            });
-    }
+    public IDisposable? PushFontScoped(in FontIdent ident, float sizePx) =>
+        PushFontScoped(new(new FontChainEntry(ident, sizePx)));
 
     /// <summary>
     /// Fetch a font, and if it succeeds, push it onto the stack.
@@ -524,8 +495,8 @@ public sealed unsafe class DynamicFontAtlas : IDisposable {
 
         try {
             var scale = ImGuiHelpers.GlobalScale;
-            if (chain.Fonts.All(x => x.Ident == default))
-                throw new ArgumentException("Font chain cannot be empty", nameof(chain));
+            if (chain.SecondaryFonts.Any(x => x.Ident == default) || chain.PrimaryFont == default)
+                throw new ArgumentException("Font chain cannot contain an empty identifier", nameof(chain));
 
             if (this.fontChains.TryGetValue((chain, scale), out var wrapper))
                 return wrapper;
@@ -533,9 +504,11 @@ public sealed unsafe class DynamicFontAtlas : IDisposable {
             wrapper = new ChainedDynamicFont(
                 this,
                 chain,
-                chain.Fonts.Select(entry => this.GetDynamicFont(entry.Ident, (int)MathF.Round(entry.SizePx * scale))));
+                chain.SecondaryFonts
+                    .Prepend(chain.PrimaryFont)
+                    .Select(entry => this.GetDynamicFont(entry.Ident, (int)MathF.Round(entry.SizePx * scale))),
+                scale);
 
-            wrapper.FontPtr.Scale = 1f / scale;
             this.fontChains[(chain, scale)] = wrapper;
             this.fontPtrToFont[(nint)wrapper.FontPtr.NativePtr] = wrapper;
             this.Fonts.Add(wrapper.FontPtr);

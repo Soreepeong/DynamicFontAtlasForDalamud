@@ -16,7 +16,7 @@ public struct FontChain : IEquatable<FontChain> {
     /// Initializes a new instance of the <see cref="FontChain"/> struct.
     /// </summary>
     public FontChain() {
-        this.FontsNullable = ImmutableList<FontChainEntry>.Empty;
+        this.SecondaryFontsNullable = ImmutableList<FontChainEntry>.Empty;
         this.LineHeight = 1f;
     }
 
@@ -25,7 +25,22 @@ public struct FontChain : IEquatable<FontChain> {
     /// </summary>
     /// <param name="fonts">Fonts to include.</param>
     public FontChain(IEnumerable<FontChainEntry> fonts) {
-        this.FontsNullable = fonts.ToImmutableList();
+        using var en = fonts.GetEnumerator();
+        if (!en.MoveNext())
+            throw new ArgumentException(null, nameof(fonts));
+
+        this.PrimaryFont = en.Current;
+        if (en.MoveNext()) {
+            var r = new List<FontChainEntry>();
+            do {
+                r.Add(en.Current);
+            } while (en.MoveNext());
+
+            this.SecondaryFontsNullable = r.ToImmutableList();
+        } else {
+            this.SecondaryFontsNullable = ImmutableList<FontChainEntry>.Empty;
+        }
+
         this.LineHeight = 1f;
     }
 
@@ -33,18 +48,27 @@ public struct FontChain : IEquatable<FontChain> {
     /// Initializes a new instance of the <see cref="FontChain"/> struct.
     /// </summary>
     /// <param name="font">Font to include.</param>
-    public FontChain(FontChainEntry font) : this(new[] { font }) { }
+    public FontChain(FontChainEntry font) : this() {
+        this.PrimaryFont = font;
+        this.SecondaryFontsNullable = ImmutableList<FontChainEntry>.Empty;
+    }
+
+    /// <summary>
+    /// Gets or sets the primary font.
+    /// </summary>
+    public FontChainEntry PrimaryFont { get; set; }
 
     /// <summary>
     /// Gets or sets the entries in the font chain.
     /// </summary>
-    public ImmutableList<FontChainEntry>? FontsNullable { get; set; }
+    public ImmutableList<FontChainEntry>? SecondaryFontsNullable { get; set; }
 
     /// <summary>
     /// Gets the entries in the font chain, in a non-null manner.
     /// </summary>
     [JsonIgnore]
-    public ImmutableList<FontChainEntry> Fonts => this.FontsNullable ?? ImmutableList<FontChainEntry>.Empty;
+    public ImmutableList<FontChainEntry> SecondaryFonts =>
+        this.SecondaryFontsNullable ?? ImmutableList<FontChainEntry>.Empty;
 
     /// <summary>
     /// Gets or sets the ratio of line height of the final font, relative to the first font of the chain.
@@ -73,15 +97,16 @@ public struct FontChain : IEquatable<FontChain> {
     /// <inheritdoc cref="object.Equals(object?)" />
     [SuppressMessage("ReSharper", "CompareOfFloatsByEqualityOperator", Justification = "It's an Equals function")]
     public bool Equals(FontChain other) =>
-        this.Fonts.Count == other.Fonts.Count
-        && this.LineHeight == other.LineHeight
+        this.LineHeight == other.LineHeight
         && this.GlyphRatio == other.GlyphRatio
         && this.VerticalAlignment == other.VerticalAlignment
-        && this.Fonts.Zip(other.Fonts).All(x => x.First == x.Second);
+        && this.PrimaryFont == other.PrimaryFont
+        && this.SecondaryFonts.Count == other.SecondaryFonts.Count
+        && this.SecondaryFonts.Zip(other.SecondaryFonts).All(x => x.First == x.Second);
 
     /// <inheritdoc/>
     public override int GetHashCode() =>
-        this.Fonts.Aggregate(
-            HashCode.Combine(this.LineHeight, this.GlyphRatio, this.VerticalAlignment),
+        this.SecondaryFonts.Aggregate(
+            HashCode.Combine(this.LineHeight, this.GlyphRatio, this.VerticalAlignment, this.PrimaryFont),
             (p, e) => HashCode.Combine(p, e.GetHashCode()));
 }

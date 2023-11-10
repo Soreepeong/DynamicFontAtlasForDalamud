@@ -8,7 +8,7 @@ using DynamicFontAtlasLib.EasyFonts;
 using DynamicFontAtlasLib.Utilities.ImGuiUtilities;
 using ImGuiNET;
 
-namespace DynamicFontAtlasLib.OnDemandFonts;
+namespace DynamicFontAtlasLib.DynamicFonts;
 
 internal abstract unsafe class DynamicFont : IDisposable {
     protected const int FrequentKerningPairsMaxCodepoint = 128;

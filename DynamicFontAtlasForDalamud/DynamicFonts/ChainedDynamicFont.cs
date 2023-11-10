@@ -7,15 +7,18 @@ using System.Text.Unicode;
 using DynamicFontAtlasLib.EasyFonts;
 using DynamicFontAtlasLib.Utilities.ImGuiUtilities;
 
-namespace DynamicFontAtlasLib.OnDemandFonts;
+namespace DynamicFontAtlasLib.DynamicFonts;
 
 internal unsafe class ChainedDynamicFont : DynamicFont {
-    public ChainedDynamicFont(DynamicFontAtlas atlas, in FontChain chain, IEnumerable<DynamicFont> subfonts)
+    private readonly float globalScale;
+
+    public ChainedDynamicFont(DynamicFontAtlas atlas, in FontChain chain, IEnumerable<DynamicFont> subfonts, float globalScale)
         : base(atlas, null) {
+        this.globalScale = globalScale;
         this.Chain = chain;
         this.Subfonts = subfonts.ToImmutableList();
 
-        this.Font.FontSize = MathF.Round(chain.Fonts[0].SizePx * chain.LineHeight);
+        this.Font.FontSize = MathF.Round(chain.PrimaryFont.SizePx * this.globalScale * chain.LineHeight);
         this.Font.FallbackChar = this.FirstAvailableChar(
             (char)Constants.Fallback1Codepoint,
             (char)Constants.Fallback2Codepoint,
@@ -25,12 +28,12 @@ internal unsafe class ChainedDynamicFont : DynamicFont {
         this.Font.EllipsisChar = this.FirstAvailableChar('…', char.MaxValue);
         this.Font.DotChar = this.FirstAvailableChar('.', char.MaxValue);
         this.Font.DirtyLookupTables = 0;
-        this.Font.Scale = 1f;
+        this.Font.Scale = 1f / globalScale;
         this.Font.Ascent = this.Subfonts[0].Font.Ascent
-            + MathF.Ceiling((chain.Fonts[0].SizePx * (chain.LineHeight - 1f)) / 2);
+            + MathF.Ceiling((chain.PrimaryFont.SizePx * this.globalScale * (chain.LineHeight - 1f)) / 2);
 
         this.Font.Descent = this.Subfonts[0].Font.Descent
-            + MathF.Floor((chain.Fonts[0].SizePx * (chain.LineHeight - 1f)) / 2);
+            + MathF.Floor((chain.PrimaryFont.SizePx * this.globalScale * (chain.LineHeight - 1f)) / 2);
 
         this.LoadGlyphs(' ', (char)this.Font.FallbackChar, (char)this.Font.EllipsisChar, (char)this.Font.DotChar);
     }
@@ -41,7 +44,10 @@ internal unsafe class ChainedDynamicFont : DynamicFont {
 
     /// <inheritdoc/>
     public override bool IsCharAvailable(char c) =>
-        this.Chain.Fonts.Zip(this.Subfonts).Any(x => x.First.RangeContainsCharacter(c) && x.Second.IsCharAvailable(c));
+        this.Chain.SecondaryFonts
+            .Prepend(this.Chain.PrimaryFont)
+            .Zip(this.Subfonts)
+            .Any(x => x.First.RangeContainsCharacter(c) && x.Second.IsCharAvailable(c));
 
     /// <inheritdoc/>
     public override void LoadGlyphs(IEnumerable<char> chars) {
@@ -54,7 +60,7 @@ internal unsafe class ChainedDynamicFont : DynamicFont {
         this.EnsureIndex(coll.Max());
 
         var changed = false;
-        foreach (var (entry, font) in this.Chain.Fonts.Zip(this.Subfonts)) {
+        foreach (var (entry, font) in this.Chain.SecondaryFonts.Prepend(this.Chain.PrimaryFont).Zip(this.Subfonts)) {
             font.LoadGlyphs(coll);
             foreach (var c in coll)
                 changed |= this.EnsureCharacter(c, entry, font);
@@ -80,7 +86,7 @@ internal unsafe class ChainedDynamicFont : DynamicFont {
         this.EnsureIndex(coll.Max(x => x.FirstCodePoint + (x.Length - 1)));
 
         var changed = false;
-        foreach (var (entry, font) in this.Chain.Fonts.Zip(this.Subfonts)) {
+        foreach (var (entry, font) in this.Chain.SecondaryFonts.Prepend(this.Chain.PrimaryFont).Zip(this.Subfonts)) {
             font.LoadGlyphs(coll);
             foreach (var c in coll) {
                 foreach (var cc in Enumerable.Range(c.FirstCodePoint, c.Length))
@@ -114,7 +120,7 @@ internal unsafe class ChainedDynamicFont : DynamicFont {
             return false;
 
         if (this.Chain.GlyphRatio > 0) {
-            var expectedWidth = this.Chain.Fonts[0].SizePx * this.Chain.GlyphRatio;
+            var expectedWidth = this.Chain.PrimaryFont.SizePx * this.globalScale * this.Chain.GlyphRatio;
             if (expectedWidth < sourceGlyph->AdvanceX) {
                 var adjustedFontSizePx = (int)MathF.Floor(entry.SizePx * expectedWidth / sourceGlyph->AdvanceX);
                 var font2 = this.Atlas.GetDynamicFont(entry.Ident, adjustedFontSizePx);
@@ -138,7 +144,7 @@ internal unsafe class ChainedDynamicFont : DynamicFont {
                     FontChainVerticalAlignment.Bottom => this.Subfonts[0].Font.FontSize - font.Font.FontSize,
                     _ => throw new ArgumentOutOfRangeException()
                 }
-                + (this.Chain.Fonts[0].SizePx * (this.Chain.LineHeight - 1f) / 2)));
+                + (this.Chain.PrimaryFont.SizePx * this.globalScale * (this.Chain.LineHeight - 1f) / 2)));
 
         var glyph = new ImFontGlyphReal {
             AdvanceX = sourceGlyph->AdvanceX + entry.LetterSpacing,
@@ -152,7 +158,7 @@ internal unsafe class ChainedDynamicFont : DynamicFont {
         };
 
         if (this.Chain.GlyphRatio > 0) {
-            var expectedWidth = this.Chain.Fonts[0].SizePx * this.Chain.GlyphRatio;
+            var expectedWidth = this.Chain.PrimaryFont.SizePx * this.globalScale * this.Chain.GlyphRatio;
             var adjust = (int)((expectedWidth - sourceGlyph->AdvanceX) / 2);
             if (adjust > 0) {
                 glyph.X0 += adjust;
