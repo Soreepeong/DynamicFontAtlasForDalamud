@@ -1,0 +1,12 @@
+{
+  "Author": "kizer",
+  "Name": "DynamicFontAtlasForDalamudSample",
+  "Punchline": "DynamicFontAtlasForDalamudSample",
+  "Description": "DynamicFontAtlasForDalamudSample",
+  "InternalName": "DynamicFontAtlasForDalamudSample",
+  "ApplicableVersion": "any",
+  "Tags": [
+    "sample",
+    "plugin"
+  ]
+}
