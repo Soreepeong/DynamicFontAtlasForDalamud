@@ -40,8 +40,7 @@ internal unsafe class ImVectorWrapper<T> : IList<T>, IList, IReadOnlyList<T>
     /// <summary>
     /// Gets the number of items contained inside the underlying ImVector{T}.
     /// </summary>
-    public int Length
-    {
+    public int Length {
         get => this.vector->Size;
         private set => *&this.vector->Size = value;
     }
@@ -49,8 +48,7 @@ internal unsafe class ImVectorWrapper<T> : IList<T>, IList, IReadOnlyList<T>
     /// <summary>
     /// Gets the number of items <b>that can be</b> contained inside the underlying ImVector{T}.
     /// </summary>
-    public int Capacity
-    {
+    public int Capacity {
         get => this.vector->Capacity;
         private set => *&this.vector->Capacity = value;
     }
@@ -59,8 +57,7 @@ internal unsafe class ImVectorWrapper<T> : IList<T>, IList, IReadOnlyList<T>
     /// Gets the pointer to the first item in the data inside underlying ImVector{T}.
     /// </summary>
     /// <remarks>This may be null, if <see cref="Capacity"/> is zero.</remarks>
-    public T* Data
-    {
+    public T* Data {
         get => (T*)this.vector->Data;
         private set => *&this.vector->Data = (nint)value;
     }
@@ -97,15 +94,13 @@ internal unsafe class ImVectorWrapper<T> : IList<T>, IList, IReadOnlyList<T>
     T IReadOnlyList<T>.this[int index] => this[index];
 
     /// <inheritdoc/>
-    object? IList.this[int index]
-    {
+    object? IList.this[int index] {
         get => this[index];
         set => this[index] = value is null ? default : (T)value;
     }
 
     /// <inheritdoc/>
-    T IList<T>.this[int index]
-    {
+    T IList<T>.this[int index] {
         get => this[index];
         set => this[index] = value;
     }

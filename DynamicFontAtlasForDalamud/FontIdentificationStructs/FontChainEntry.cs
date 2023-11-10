@@ -2,7 +2,7 @@
 using System.Linq;
 using System.Text.Unicode;
 
-namespace DynamicFontAtlasLib.EasyFonts;
+namespace DynamicFontAtlasLib.FontIdentificationStructs;
 
 /// <summary>
 /// Indicates an entry in a font chain.

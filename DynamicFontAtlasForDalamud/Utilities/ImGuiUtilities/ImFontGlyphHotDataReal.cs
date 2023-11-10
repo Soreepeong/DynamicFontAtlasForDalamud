@@ -16,20 +16,17 @@ internal struct ImFontGlyphHotDataReal {
     private const int OffsetShift = 1;
     private const int CountShift = 20;
 
-    public bool UseBisect
-    {
+    public bool UseBisect {
         get => (int)((this.KerningPairInfo & UseBisectMask) >> UseBisectShift) != 0;
         set => this.KerningPairInfo = (this.KerningPairInfo & ~UseBisectMask) | (value ? 1u << UseBisectShift : 0u);
     }
 
-    public int Offset
-    {
+    public int Offset {
         get => (int)((this.KerningPairInfo & OffsetMask) >> OffsetShift);
         set => this.KerningPairInfo = (this.KerningPairInfo & ~OffsetMask) | ((uint)value << OffsetShift);
     }
 
-    public int Count
-    {
+    public int Count {
         get => (int)(this.KerningPairInfo & CountMask) >> CountShift;
         set => this.KerningPairInfo = (this.KerningPairInfo & ~CountMask) | ((uint)value << CountShift);
     }

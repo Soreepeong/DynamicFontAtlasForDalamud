@@ -4,7 +4,7 @@ using Dalamud.Interface.Windowing;
 using Dalamud.Plugin.Services;
 using OnDemandFontsSample.Windows;
 
-namespace OnDemandFontsSample; 
+namespace OnDemandFontsSample;
 
 public sealed class Plugin : IDalamudPlugin {
     public Plugin(
@@ -19,7 +19,7 @@ public sealed class Plugin : IDalamudPlugin {
 
         this.MainWindow = new(this);
         this.WindowSystem.AddWindow(MainWindow);
-        
+
         this.PluginInterface.UiBuilder.Draw += this.DrawUi;
     }
 

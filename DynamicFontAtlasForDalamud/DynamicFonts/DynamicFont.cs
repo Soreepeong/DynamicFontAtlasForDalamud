@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text.Unicode;
-using DynamicFontAtlasLib.EasyFonts;
+using DynamicFontAtlasLib.FontIdentificationStructs;
 using DynamicFontAtlasLib.Utilities.ImGuiUtilities;
 using ImGuiNET;
 

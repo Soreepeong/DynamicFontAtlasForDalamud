@@ -4,18 +4,19 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using DynamicFontAtlasLib.FontIdentificationStructs;
 using SharpDX;
 using SDXFactory = SharpDX.DirectWrite.Factory;
 using SDXFont1 = SharpDX.DirectWrite.Font1;
 using SDXFontSimulations = SharpDX.DirectWrite.FontSimulations;
 using SDXUnicodeRange = SharpDX.DirectWrite.UnicodeRange;
 
-namespace DynamicFontAtlasLib.EasyFonts;
+namespace DynamicFontAtlasLib.Utilities;
 
 /// <summary>
 /// Font utility functions.
 /// </summary>
-public static class EasyFontUtils {
+public static class FontEnumeration {
     /// <summary>
     /// Get the list of installed system fonts.
     /// </summary>

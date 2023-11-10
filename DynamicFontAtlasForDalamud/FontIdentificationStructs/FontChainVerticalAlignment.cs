@@ -1,4 +1,4 @@
-﻿namespace DynamicFontAtlasLib.EasyFonts; 
+﻿namespace DynamicFontAtlasLib.FontIdentificationStructs;
 
 public enum FontChainVerticalAlignment {
     Top,

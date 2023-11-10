@@ -1,7 +1,7 @@
 ﻿using Newtonsoft.Json;
 using SharpDX.DirectWrite;
 
-namespace DynamicFontAtlasLib.EasyFonts;
+namespace DynamicFontAtlasLib.FontIdentificationStructs;
 
 /// <summary>
 /// Indicates a set of font variant information.

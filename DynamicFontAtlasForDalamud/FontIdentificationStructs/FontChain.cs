@@ -5,7 +5,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Text.Json.Serialization;
 
-namespace DynamicFontAtlasLib.EasyFonts;
+namespace DynamicFontAtlasLib.FontIdentificationStructs;
 
 /// <summary>
 /// Indicates a whole font chain.

@@ -12,7 +12,7 @@ internal class MemoryFontFileEnumerator : CallbackBase, FontFileEnumerator {
         this.factory = factory;
         this.loader = loader;
     }
-    
+
     /// <inheritdoc/>
     public bool MoveNext() {
         if (this.index == this.loader.Memories.Length - 1)
@@ -23,10 +23,8 @@ internal class MemoryFontFileEnumerator : CallbackBase, FontFileEnumerator {
     }
 
     /// <inheritdoc/>
-    public unsafe FontFile CurrentFontFile
-    {
-        get
-        {
+    public unsafe FontFile CurrentFontFile {
+        get {
             var tmp = stackalloc ulong[3];
             tmp[0] = MemoryFontLoader.Signature;
             tmp[1] = this.loader.InstanceCounter;

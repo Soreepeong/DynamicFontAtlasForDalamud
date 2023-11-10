@@ -5,7 +5,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using DynamicFontAtlasLib.DynamicFonts.DirectWriteHelpers;
-using DynamicFontAtlasLib.EasyFonts;
+using DynamicFontAtlasLib.FontIdentificationStructs;
 using DynamicFontAtlasLib.Utilities;
 using DynamicFontAtlasLib.Utilities.ImGuiUtilities;
 using SharpDX.Direct2D1;

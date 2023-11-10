@@ -46,13 +46,11 @@ internal static unsafe class CRuntime {
         for (;;) {
             do {
                 ++i;
-            }
-            while (comparer(data + size * i, pivot) < 0);
+            } while (comparer(data + size * i, pivot) < 0);
 
             do {
                 --j;
-            }
-            while (comparer(data + size * j, pivot) > 0);
+            } while (comparer(data + size * j, pivot) > 0);
 
             if (i >= j) {
                 return j;

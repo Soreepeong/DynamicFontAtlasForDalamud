@@ -5,13 +5,14 @@ using System.IO;
 using System.Linq;
 using System.Numerics;
 using System.Reactive.Disposables;
+using System.Reflection;
 using System.Text.Unicode;
 using Dalamud.Interface.GameFonts;
 using Dalamud.Interface.Internal;
 using Dalamud.Interface.Utility;
 using Dalamud.Plugin.Services;
 using DynamicFontAtlasLib.DynamicFonts;
-using DynamicFontAtlasLib.EasyFonts;
+using DynamicFontAtlasLib.FontIdentificationStructs;
 using DynamicFontAtlasLib.Utilities;
 using DynamicFontAtlasLib.Utilities.ImGuiUtilities;
 using ImGuiNET;
@@ -31,7 +32,6 @@ public sealed unsafe class DynamicFontAtlas : IDisposable {
 
     private readonly DisposeStack disposeStack = new();
     private readonly ImFontAtlas* pAtlas;
-    private readonly byte[] gammaTable = new byte[256];
     private readonly Dictionary<(FontIdent Ident, int SizePx), DynamicFont> fontEntries = new();
     private readonly Dictionary<(FontChain Chain, float Scale), DynamicFont> fontChains = new();
     private readonly Dictionary<nint, DynamicFont> fontPtrToFont = new();
@@ -42,6 +42,9 @@ public sealed unsafe class DynamicFontAtlas : IDisposable {
     private float lastGamma = float.NaN;
     private int suppressTextureUpdateCounter;
     private FontIdent? fallbackFontIdent;
+
+    private readonly object interfaceManager;
+    private readonly PropertyInfo fontGammaProperty;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="DynamicFontAtlas"/> class.
@@ -70,6 +73,17 @@ public sealed unsafe class DynamicFontAtlas : IDisposable {
             this.CustomRects = new(&this.pAtlas->CustomRects, null);
             this.FontConfigs = new(&this.pAtlas->ConfigData, null);
 
+            var serviceGenericType = Assembly.GetAssembly(typeof(IDalamudTextureWrap))!.DefinedTypes
+                .Single(x => x.FullName == "Dalamud.Service`1");
+
+            var interfaceManagerType = Assembly.GetAssembly(typeof(IDalamudTextureWrap))!.DefinedTypes
+                .Single(x => x.FullName == "Dalamud.Interface.Internal.InterfaceManager");
+
+            var serviceInterfaceManagerType = serviceGenericType.MakeGenericType(interfaceManagerType);
+            this.interfaceManager = serviceInterfaceManagerType.GetMethod("Get")!.Invoke(null, null)!;
+            this.fontGammaProperty = interfaceManagerType
+                .GetProperty("FontGamma", BindingFlags.Public | BindingFlags.Instance)!;
+
             this.Clear(false);
         } catch {
             this.disposeStack.Dispose();
@@ -88,11 +102,6 @@ public sealed unsafe class DynamicFontAtlas : IDisposable {
     public bool IsDisposed { get; private set; }
 
     /// <summary>
-    /// Gets or sets the gamma level.
-    /// </summary>
-    public float Gamma { get; set; } = 1.4f;
-
-    /// <summary>
     /// Gets the wrapped <see cref="ImFontAtlasPtr"/>.
     /// </summary>
     public ImFontAtlasPtr AtlasPtr => new(this.pAtlas);
@@ -100,11 +109,9 @@ public sealed unsafe class DynamicFontAtlas : IDisposable {
     /// <summary>
     /// Gets or sets the fallback font. Once set, until a call to <see cref="Clear"/>, the changes may not apply.
     /// </summary>
-    public FontIdent? FallbackFont
-    {
+    public FontIdent? FallbackFont {
         get => this.fallbackFontIdent;
-        set
-        {
+        set {
             if (this.fallbackFontIdent == value)
                 return;
 
@@ -164,20 +171,12 @@ public sealed unsafe class DynamicFontAtlas : IDisposable {
     /// <summary>
     /// Gets the gamma mapping table.
     /// </summary>
-    internal byte[] GammaMappingTable
-    {
-        get
-        {
-            if (Math.Abs(this.lastGamma - this.Gamma) >= 0.0001)
-                return this.gammaTable;
+    internal byte[] GammaMappingTable { get; } = new byte[256];
 
-            for (var i = 0; i < 256; i++)
-                this.gammaTable[i] = (byte)(MathF.Pow(Math.Clamp(i / 255.0f, 0.0f, 1.0f), 1.0f / this.Gamma) * 255.0f);
-
-            this.lastGamma = this.Gamma;
-            return this.gammaTable;
-        }
-    }
+    /// <summary>
+    /// Gets the gamma level.
+    /// </summary>
+    private float GammaLevel => (float)this.fontGammaProperty.GetValue(this.interfaceManager)!;
 
     /// <summary>
     /// Gets the font corresponding to the given specifications.
@@ -337,6 +336,8 @@ public sealed unsafe class DynamicFontAtlas : IDisposable {
         if (this.IsDisposed)
             throw new ObjectDisposedException(nameof(DynamicFontAtlas));
 
+        this.ProcessGammaChanges();
+
         if (this.fontEntries.TryGetValue((ident, sizePx), out var wrapper))
             return wrapper;
 
@@ -492,6 +493,8 @@ public sealed unsafe class DynamicFontAtlas : IDisposable {
 
         if (!(chain.GlyphRatio >= 0))
             throw new ArgumentException("Ratio must be a positive number or a zero", nameof(chain));
+    
+        this.ProcessGammaChanges();
 
         try {
             var scale = ImGuiHelpers.GlobalScale;
@@ -663,6 +666,18 @@ public sealed unsafe class DynamicFontAtlas : IDisposable {
         if (this.IsDisposed) {
             ImGuiNative.ImFontAtlas_destroy(this.pAtlas);
             this.IsDisposed = true;
+        }
+    }
+
+    private void ProcessGammaChanges() {
+        var gamma = this.GammaLevel;
+        if (!(Math.Abs(this.lastGamma - gamma) < 0.0001)) {
+            var table = this.GammaMappingTable;
+            for (var i = 0; i < 256; i++)
+                table[i] = (byte)(MathF.Pow(Math.Clamp(i / 255.0f, 0.0f, 1.0f), 1.0f / gamma) * 255.0f);
+
+            this.lastGamma = gamma;
+            this.Clear(false);
         }
     }
 }

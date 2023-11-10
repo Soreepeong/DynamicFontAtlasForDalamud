@@ -66,29 +66,25 @@ internal struct ImFontGlyphReal {
     private const int TextureShift = 2;
     private const int CodepointShift = 11;
 
-    public bool Colored
-    {
+    public bool Colored {
         get => (int)((this.ColoredVisibleTextureIndexCodepoint & ColoredMask) >> ColoredShift) != 0;
         set => this.ColoredVisibleTextureIndexCodepoint =
             (this.ColoredVisibleTextureIndexCodepoint & ~ColoredMask) | (value ? 1u << ColoredShift : 0u);
     }
 
-    public bool Visible
-    {
+    public bool Visible {
         get => (int)((this.ColoredVisibleTextureIndexCodepoint & VisibleMask) >> VisibleShift) != 0;
         set => this.ColoredVisibleTextureIndexCodepoint =
             (this.ColoredVisibleTextureIndexCodepoint & ~VisibleMask) | (value ? 1u << VisibleShift : 0u);
     }
 
-    public int TextureIndex
-    {
+    public int TextureIndex {
         get => (int)((this.ColoredVisibleTextureIndexCodepoint & TextureMask) >> TextureShift);
         set => this.ColoredVisibleTextureIndexCodepoint =
             (this.ColoredVisibleTextureIndexCodepoint & ~TextureMask) | ((uint)value << TextureShift);
     }
 
-    public int Codepoint
-    {
+    public int Codepoint {
         get => (int)((this.ColoredVisibleTextureIndexCodepoint & CodepointMask) >> CodepointShift);
         set => this.ColoredVisibleTextureIndexCodepoint =
             (this.ColoredVisibleTextureIndexCodepoint & ~CodepointMask) | ((uint)value << CodepointShift);

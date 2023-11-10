@@ -5,7 +5,7 @@ using System.Linq;
 using System.Numerics;
 using System.Text.Unicode;
 using Dalamud.Interface.GameFonts;
-using DynamicFontAtlasLib.EasyFonts;
+using DynamicFontAtlasLib.FontIdentificationStructs;
 using DynamicFontAtlasLib.Utilities.ImGuiUtilities;
 
 namespace DynamicFontAtlasLib.DynamicFonts;

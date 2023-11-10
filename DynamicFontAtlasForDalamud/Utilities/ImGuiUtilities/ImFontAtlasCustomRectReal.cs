@@ -24,15 +24,13 @@ internal unsafe struct ImFontAtlasCustomRectReal {
     private const int TextureIndexShift = 2;
     private const int GlyphIdShift = 11;
 
-    public int TextureIndex
-    {
+    public int TextureIndex {
         get => (int)(this.TextureIndexAndGlyphId & TextureIndexMask) >> TextureIndexShift;
         set => this.TextureIndexAndGlyphId =
             (this.TextureIndexAndGlyphId & ~TextureIndexMask) | ((uint)value << TextureIndexShift);
     }
 
-    public int GlyphId
-    {
+    public int GlyphId {
         get => (int)(this.TextureIndexAndGlyphId & GlyphIdMask) >> GlyphIdShift;
         set => this.TextureIndexAndGlyphId =
             (this.TextureIndexAndGlyphId & ~GlyphIdMask) | ((uint)value << GlyphIdShift);

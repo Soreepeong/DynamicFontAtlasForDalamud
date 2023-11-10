@@ -7,7 +7,8 @@ using Dalamud.Interface;
 using Dalamud.Interface.GameFonts;
 using Dalamud.Interface.Windowing;
 using DynamicFontAtlasLib;
-using DynamicFontAtlasLib.EasyFonts;
+using DynamicFontAtlasLib.FontIdentificationStructs;
+using DynamicFontAtlasLib.Utilities;
 using ImGuiNET;
 
 namespace OnDemandFontsSample.Windows;
@@ -97,7 +98,7 @@ public class MainWindow : Window, IDisposable {
             };
 
             this.systemEntries =
-                EasyFontUtils
+                FontEnumeration
                     .GetSystemFontsAsync("ko", excludeSimulated: false)
                     .ContinueWith(res => res.Result.SelectMany(x => x.Variants).ToList());
         }

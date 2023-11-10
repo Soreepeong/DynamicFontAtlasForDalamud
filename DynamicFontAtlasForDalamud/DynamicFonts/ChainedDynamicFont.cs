@@ -4,7 +4,7 @@ using System.Collections.Immutable;
 using System.Linq;
 using System.Numerics;
 using System.Text.Unicode;
-using DynamicFontAtlasLib.EasyFonts;
+using DynamicFontAtlasLib.FontIdentificationStructs;
 using DynamicFontAtlasLib.Utilities.ImGuiUtilities;
 
 namespace DynamicFontAtlasLib.DynamicFonts;
@@ -12,7 +12,11 @@ namespace DynamicFontAtlasLib.DynamicFonts;
 internal unsafe class ChainedDynamicFont : DynamicFont {
     private readonly float globalScale;
 
-    public ChainedDynamicFont(DynamicFontAtlas atlas, in FontChain chain, IEnumerable<DynamicFont> subfonts, float globalScale)
+    public ChainedDynamicFont(
+        DynamicFontAtlas atlas,
+        in FontChain chain,
+        IEnumerable<DynamicFont> subfonts,
+        float globalScale)
         : base(atlas, null) {
         this.globalScale = globalScale;
         this.Chain = chain;

@@ -2,7 +2,7 @@
 using Dalamud.Interface.GameFonts;
 using SharpDX.DirectWrite;
 
-namespace DynamicFontAtlasLib.EasyFonts;
+namespace DynamicFontAtlasLib.FontIdentificationStructs;
 
 /// <summary>
 /// Indicates a font family and variant, or a font path and inner font index inside a font file.
