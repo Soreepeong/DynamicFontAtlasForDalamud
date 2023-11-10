@@ -104,7 +104,7 @@ internal unsafe class AxisDynamicFont : DynamicFont {
                 rhd.UseBisect = true;
         }
 
-        this.Font.FontSize = MathF.Round(fdt.FontHeader.Size * 4 / 3);
+        this.Font.FontSize = MathF.Floor(fdt.FontHeader.Size * 4 / 3);
         this.Font.FallbackChar = this.FirstAvailableChar(
             (char)Constants.Fallback1Codepoint,
             (char)Constants.Fallback2Codepoint,
