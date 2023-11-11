@@ -349,8 +349,9 @@ public sealed unsafe class DynamicFontAtlas : IDisposable {
             switch (ident) {
                 case { Game: not GameFontFamily.Undefined }:
                 {
-                    var gfs = new GameFontStyle(new GameFontStyle(ident.Game, sizePx).FamilyAndSize);
-                    if ((int)MathF.Round(gfs.SizePx) == sizePx) {
+                    var gfs = new GameFontStyle(Constants.GetRecommendedFamilyAndSize(ident.Game, sizePx * 3f / 4));
+                    var baseSizePx = gfs.FamilyAndSize == GameFontFamilyAndSize.TrumpGothic68 ? 68 * 4f / 3f : gfs.SizePx;
+                    if ((int)MathF.Round(baseSizePx) == sizePx) {
                         const string filename = "font{}.tex";
                         var fdt = new FdtReader(this.dataManager.GetFile(gfs.FamilyAndSize.GetFdtPath())!.Data);
 
@@ -403,11 +404,11 @@ public sealed unsafe class DynamicFontAtlas : IDisposable {
 
                         wrapper = new AxisDynamicFont(this, gfs, fdt, textureIndices);
                     } else {
-                        var baseFontIdent = this.GetDynamicFont(ident, (int)MathF.Round(gfs.SizePx)).FontPtr.NativePtr;
+                        var baseFontIdent = this.GetDynamicFont(ident, (int)MathF.Round(baseSizePx)).FontPtr.NativePtr;
                         wrapper = new ScaledDynamicFont(
                             this,
                             this.fontPtrToFont[(nint)baseFontIdent],
-                            sizePx / gfs.SizePx);
+                            sizePx / baseSizePx);
                     }
 
                     break;

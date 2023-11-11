@@ -24,7 +24,7 @@ public class MainWindow : Window, IDisposable {
     private readonly List<FontChainEntry> gameEntries = Enum.GetValues<GameFontFamilyAndSize>()
         .Where(x => x != GameFontFamilyAndSize.Undefined)
         .Select(x => new GameFontStyle(x))
-        .Select(x => new FontChainEntry(FontIdent.From(x.Family), x.SizePx))
+        .Select(x => new FontChainEntry(FontIdent.From(x.Family), x.FamilyAndSize == GameFontFamilyAndSize.TrumpGothic68 ? 68f * 4 / 3 : x.SizePx))
         .ToList();
 
     private readonly FontChain exampleChain = new(
