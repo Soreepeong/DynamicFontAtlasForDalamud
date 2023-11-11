@@ -290,11 +290,11 @@ internal class DirectWriteDynamicFont : DynamicFont {
                             var src = tmpBuffer.AsSpan(y * widthBy3, widthBy3);
                             var dst = wrap.Data.AsSpan((((v0 + y) * wrap.Width) + u0) * 4, width * 4);
                             for (int rx = 0, wx = 0; rx < widthBy3; rx += 3, wx += 4) {
-                                var alpha = Math.Max(src[rx], Math.Max(src[rx + 1], src[rx + 2]));
                                 dst[wx + 0] = 0xFF;
                                 dst[wx + 1] = 0xFF;
                                 dst[wx + 2] = 0xFF;
-                                dst[wx + 3] = multTable[alpha];
+                                dst[wx + 3] = (byte)
+                                    ((multTable[src[rx]] + multTable[src[rx + 1]] + multTable[src[rx + 2]]) / 3);
                             }
                         }
                     } else {
@@ -303,8 +303,8 @@ internal class DirectWriteDynamicFont : DynamicFont {
                             var src = tmpBuffer.AsSpan(y * widthBy3, widthBy3);
                             var dst = wrap.Data.AsSpan((((v0 + y) * wrap.Width) + u0) * 4, width * 4);
                             for (int rx = 0, wx = channel; rx < widthBy3; rx += 3, wx += 4) {
-                                var alpha = (src[rx] + src[rx + 1] + src[rx + 2]) / 3;
-                                dst[wx] = multTable[alpha];
+                                dst[wx] = (byte)
+                                    ((multTable[src[rx]] + multTable[src[rx + 1]] + multTable[src[rx + 2]]) / 3);
                             }
                         }
                     }
@@ -314,11 +314,10 @@ internal class DirectWriteDynamicFont : DynamicFont {
                             var src = tmpBuffer.AsSpan(y * width, width);
                             var dst = wrap.Data.AsSpan((((v0 + y) * wrap.Width) + u0) * 4, width * 4);
                             for (int rx = 0, wx = 0; rx < width; rx++, wx += 4) {
-                                var alpha = src[rx];
                                 dst[wx + 0] = 0xFF;
                                 dst[wx + 1] = 0xFF;
                                 dst[wx + 2] = 0xFF;
-                                dst[wx + 3] = multTable[alpha];
+                                dst[wx + 3] = multTable[src[rx]];
                             }
                         }
                     } else {
@@ -326,10 +325,8 @@ internal class DirectWriteDynamicFont : DynamicFont {
                         for (var y = 0; y < height; y++) {
                             var src = tmpBuffer.AsSpan(y * width, width);
                             var dst = wrap.Data.AsSpan((((v0 + y) * wrap.Width) + u0) * 4, width * 4);
-                            for (int rx = 0, wx = channel; rx < width; rx++, wx += 4) {
-                                var alpha = src[rx];
-                                dst[wx] = multTable[alpha];
-                            }
+                            for (int rx = 0, wx = channel; rx < width; rx++, wx += 4)
+                                dst[wx] = multTable[src[rx]];
                         }
                     }
                 }

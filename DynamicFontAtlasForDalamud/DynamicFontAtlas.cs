@@ -36,6 +36,7 @@ public sealed unsafe class DynamicFontAtlas : IDisposable {
     private readonly Dictionary<(FontIdent Ident, int SizePx), DynamicFont> fontEntries = new();
     private readonly Dictionary<(FontChain Chain, float Scale), DynamicFont> fontChains = new();
     private readonly Dictionary<nint, DynamicFont> fontPtrToFont = new();
+    private readonly Dictionary<string, FdtReader> gameFdtFiles = new();
     private readonly Dictionary<string, int[]> gameFontTextures = new();
     private readonly Dictionary<FontChain, Exception> failedChains = new();
     private readonly Dictionary<(FontIdent Ident, int SizePx), Exception> failedIdents = new();
@@ -353,7 +354,10 @@ public sealed unsafe class DynamicFontAtlas : IDisposable {
                     var baseSizePx = gfs.FamilyAndSize == GameFontFamilyAndSize.TrumpGothic68 ? 68 * 4f / 3f : gfs.SizePx;
                     if ((int)MathF.Round(baseSizePx) == sizePx) {
                         const string filename = "font{}.tex";
-                        var fdt = new FdtReader(this.dataManager.GetFile(gfs.FamilyAndSize.GetFdtPath())!.Data);
+
+                        var fdtPath = gfs.FamilyAndSize.GetFdtPath();
+                        if (!this.gameFdtFiles.TryGetValue(fdtPath, out var fdt))
+                            this.gameFdtFiles.Add(fdtPath, fdt = new(this.dataManager.GetFile(fdtPath)!.Data));
 
                         var numExpectedTex = fdt.Glyphs.Max(x => x.TextureFileIndex) + 1;
                         if (!this.gameFontTextures.TryGetValue(filename, out var textureIndices)

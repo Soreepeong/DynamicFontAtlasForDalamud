@@ -114,10 +114,8 @@ public class MainWindow : Window, IDisposable {
         }
 
         ImGui.SameLine();
-        if (ImGui.Button("Clear")) {
+        if (ImGui.Button("Clear"))
             this.atlas.Clear();
-            return;
-        }
 
         ImGui.DragFloat("Font Size(px)", ref this.fontSize, 1, 6, 64);
 
