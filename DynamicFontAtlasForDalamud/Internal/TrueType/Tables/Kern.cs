@@ -2,7 +2,7 @@
 using System.Buffers.Binary;
 using System.Collections;
 using System.Collections.Generic;
-using System.Runtime.CompilerServices;
+using DynamicFontAtlasLib.Internal.TrueType.CommonStructs;
 
 namespace DynamicFontAtlasLib.Internal.TrueType.Tables;
 
@@ -12,24 +12,24 @@ public struct Kern : IEnumerable<(Kern.KerningPair Pair, bool Override)> {
 
     public static readonly TagStruct DirectoryTableTag = new('k', 'e', 'r', 'n');
 
-    public Memory<byte> Data;
-    public ushort Version;
+    public PointerSpan<byte> Memory;
 
-    public Kern(Memory<byte> data) {
-        this.Data = data;
-        Version = data.Span.UInt16At(0);
+    public Kern(PointerSpan<byte> memory) {
+        this.Memory = memory;
     }
+
+    public ushort Version => this.Memory.ReadU16BE(0);
 
     public IEnumerator<(KerningPair Pair, bool Override)> GetEnumerator() {
         switch (this.Version) {
             case 0: {
-                foreach (var f in new Version0(this.Data))
+                foreach (var f in new Version0(this.Memory))
                     yield return f;
 
                 break;
             }
             case 1: {
-                foreach (var f in new Version1(this.Data))
+                foreach (var f in new Version1(this.Memory))
                     yield return (f, false);
 
                 break;
@@ -44,41 +44,47 @@ public struct Kern : IEnumerable<(Kern.KerningPair Pair, bool Override)> {
         public ushort Right;
         public short Value;
 
-        public KerningPair(Span<byte> span) {
-            this.Left = BinaryPrimitives.ReadUInt16BigEndian(span);
-            this.Right = BinaryPrimitives.ReadUInt16BigEndian(span[2..]);
-            this.Value = BinaryPrimitives.ReadInt16BigEndian(span[4..]);
+        public KerningPair(PointerSpan<byte> span) {
+            var offset = 0;
+            span.ReadBE(ref offset, out this.Left);
+            span.ReadBE(ref offset, out this.Right);
+            span.ReadBE(ref offset, out this.Value);
         }
+
+        public static KerningPair ReverseEndianness(KerningPair pair) => new() {
+            Left = BinaryPrimitives.ReverseEndianness(pair.Left),
+            Right = BinaryPrimitives.ReverseEndianness(pair.Right),
+            Value = BinaryPrimitives.ReverseEndianness(pair.Value),
+        };
     }
 
     public struct Format0 : IEnumerable<KerningPair> {
-        public ushort PairCount;
-        public Memory<byte> PairsBytes;
+        public PointerSpan<byte> Memory;
 
-        public Format0(Memory<byte> memory) {
-            this.PairCount = memory.Span.UInt16At(0);
-            this.PairsBytes = memory.Slice(8, Math.Min(8, this.PairCount * Unsafe.SizeOf<KerningPair>()));
-            this.PairCount = (ushort)(this.PairsBytes.Length / Unsafe.SizeOf<KerningPair>());
-        }
+        public Format0(PointerSpan<byte> memory) => this.Memory = memory;
 
-        public IEnumerator<KerningPair> GetEnumerator() {
-            var elementSize = Unsafe.SizeOf<KerningPair>();
-            for (var i = 0; i < this.PairsBytes.Length; i += elementSize)
-                yield return new(this.PairsBytes.Span[i..]);
-        }
+        public ushort PairCount => this.Memory.ReadU16BE(0);
+        public ushort SearchRange => this.Memory.ReadU16BE(2);
+        public ushort EntrySelector => this.Memory.ReadU16BE(4);
+        public ushort RangeShift => this.Memory.ReadU16BE(6);
+
+        public BigEndianPointerSpan<KerningPair> Pairs => new(
+            this.Memory[8..].As<KerningPair>(this.PairCount),
+            KerningPair.ReverseEndianness);
+
+        public IEnumerator<KerningPair> GetEnumerator() => this.Pairs.GetEnumerator();
 
         IEnumerator IEnumerable.GetEnumerator() => this.GetEnumerator();
     }
 
     public struct Version0 : IEnumerable<(KerningPair Pair, bool Override)> {
-        public ushort NumSubtables;
-        public Memory<byte> Data;
+        public PointerSpan<byte> Memory;
 
-        public Version0(Memory<byte> memory) {
-            var span = memory.Span;
-            this.NumSubtables = BinaryPrimitives.ReadUInt16BigEndian(span[2..]);
-            this.Data = memory[4..];
-        }
+        public Version0(PointerSpan<byte> memory) => this.Memory = memory;
+
+        public ushort Version => this.Memory.ReadU16BE(0);
+        public ushort NumSubtables => this.Memory.ReadU16BE(2);
+        public PointerSpan<byte> Data => this.Memory[4..];
 
         public IEnumerator<(KerningPair Pair, bool Override)> GetEnumerator() {
             var data = this.Data;
@@ -102,18 +108,15 @@ public struct Kern : IEnumerable<(Kern.KerningPair Pair, bool Override)> {
         }
 
         public struct Subtable : IEnumerable<(KerningPair Pair, bool Override)> {
-            public ushort Length;
-            public CoverageFlags Flags;
-            public byte Format;
-            public Memory<byte> Data;
+            public PointerSpan<byte> Memory;
 
-            public Subtable(Memory<byte> memory) {
-                var span = memory.Span;
-                this.Length = BinaryPrimitives.ReadUInt16BigEndian(span[2..]);
-                this.Flags = (CoverageFlags)span[4];
-                this.Format = span[5];
-                this.Data = memory.Slice(6, Math.Min(memory.Length - 6, this.Length - 6));
-            }
+            public Subtable(PointerSpan<byte> memory) => this.Memory = memory;
+
+            public ushort Version => this.Memory.ReadU16BE(0);
+            public ushort Length => this.Memory.ReadU16BE(2);
+            public CoverageFlags Flags => this.Memory.ReadEnumBE<CoverageFlags>(4);
+            public byte Format => this.Memory[5];
+            public PointerSpan<byte> Data => this.Memory[6..];
 
             public IEnumerator<(KerningPair Pair, bool Override)> GetEnumerator() {
                 var @override = (this.Flags & CoverageFlags.Override) != 0;
@@ -132,14 +135,13 @@ public struct Kern : IEnumerable<(Kern.KerningPair Pair, bool Override)> {
     }
 
     public struct Version1 : IEnumerable<KerningPair> {
-        public uint NumSubtables;
-        public Memory<byte> Data;
+        public PointerSpan<byte> Memory;
 
-        public Version1(Memory<byte> memory) {
-            var span = memory.Span;
-            this.NumSubtables = BinaryPrimitives.ReadUInt32BigEndian(span);
-            this.Data = memory[4..];
-        }
+        public Version1(PointerSpan<byte> memory) => this.Memory = memory;
+
+        public int Version => this.Memory.ReadI32BE(0);
+        public int NumSubtables => this.Memory.ReadI16BE(4);
+        public PointerSpan<byte> Data => this.Memory[8..];
 
         public IEnumerator<KerningPair> GetEnumerator() {
             var data = this.Data;
@@ -162,20 +164,15 @@ public struct Kern : IEnumerable<(Kern.KerningPair Pair, bool Override)> {
         }
 
         public struct Subtable : IEnumerable<KerningPair> {
-            public int Length;
-            public CoverageFlags Flags;
-            public byte Format;
-            public ushort TupleIndex;
-            public Memory<byte> Data;
+            public PointerSpan<byte> Memory;
 
-            public Subtable(Memory<byte> memory) {
-                var span = memory.Span;
-                this.Length = BinaryPrimitives.ReadInt32BigEndian(span);
-                this.Flags = (CoverageFlags)span[4];
-                this.Format = span[5];
-                this.TupleIndex = BinaryPrimitives.ReadUInt16BigEndian(span[6..]);
-                this.Data = memory.Slice(6, Math.Min(memory.Length - 8, this.Length - 8));
-            }
+            public Subtable(PointerSpan<byte> memory) => this.Memory = memory;
+            
+            public int Length => this.Memory.ReadI32BE(0);
+            public CoverageFlags Flags => this.Memory.ReadEnumBE<CoverageFlags>(4);
+            public byte Format => this.Memory[5];
+            public ushort TupleIndex => this.Memory.ReadU16BE(6);
+            public PointerSpan<byte> Data => this.Memory[8..];
 
             public IEnumerator<KerningPair> GetEnumerator() {
                 if (this.TupleIndex != 0)

@@ -4,23 +4,22 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using DynamicFontAtlasLib.Internal.TrueType.CommonStructs;
 
 namespace DynamicFontAtlasLib.Internal.TrueType.Files;
 
 #pragma warning disable CS0649
-public struct SfntFile : IReadOnlyDictionary<TagStruct, Memory<byte>> {
+public struct SfntFile : IReadOnlyDictionary<TagStruct, PointerSpan<byte>> {
     // http://formats.kaitai.io/ttf/ttf.svg
 
-    public Memory<byte> Memory;
+    public PointerSpan<byte> Memory;
     public int OffsetInCollection;
-    public Fixed SfntVersion;
     public ushort TableCount;
 
-    public SfntFile(Memory<byte> memory, int offsetInCollection) {
+    public SfntFile(PointerSpan<byte> memory, int offsetInCollection) {
         var span = memory.Span;
         this.Memory = memory;
         this.OffsetInCollection = offsetInCollection;
-        this.SfntVersion = new(span);
         this.TableCount = BinaryPrimitives.ReadUInt16BigEndian(span[4..]);
     }
 
@@ -28,11 +27,11 @@ public struct SfntFile : IReadOnlyDictionary<TagStruct, Memory<byte>> {
 
     public IEnumerable<TagStruct> Keys => this.Select(x => x.Key);
 
-    public IEnumerable<Memory<byte>> Values => this.Select(x => x.Value);
+    public IEnumerable<PointerSpan<byte>> Values => this.Select(x => x.Value);
 
-    public Memory<byte> this[TagStruct key] => this.First(x => x.Key == key).Value;
+    public PointerSpan<byte> this[TagStruct key] => this.First(x => x.Key == key).Value;
 
-    public IEnumerator<KeyValuePair<TagStruct, Memory<byte>>> GetEnumerator() {
+    public IEnumerator<KeyValuePair<TagStruct, PointerSpan<byte>>> GetEnumerator() {
         var offset = 12;
         for (var i = 0; i < this.TableCount; i++) {
             var dte = new DirectoryTableEntry(this.Memory.Span[offset..]);
@@ -45,7 +44,7 @@ public struct SfntFile : IReadOnlyDictionary<TagStruct, Memory<byte>> {
 
     public bool ContainsKey(TagStruct key) => this.Any(x => x.Key == key);
 
-    public bool TryGetValue(TagStruct key, out Memory<byte> value) {
+    public bool TryGetValue(TagStruct key, out PointerSpan<byte> value) {
         foreach (var (k, v) in this) {
             if (k == key) {
                 value = v;

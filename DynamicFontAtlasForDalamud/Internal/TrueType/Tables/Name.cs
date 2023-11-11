@@ -1,7 +1,7 @@
 ﻿using System;
-using System.Buffers.Binary;
 using System.Runtime.CompilerServices;
 using System.Text;
+using DynamicFontAtlasLib.Internal.TrueType.CommonStructs;
 
 namespace DynamicFontAtlasLib.Internal.TrueType.Tables;
 
@@ -14,32 +14,29 @@ public struct Name {
     public ushort Version;
     public NameRecord[] NameRecords;
     public LanguageRecord[] LanguageRecords;
-    public Memory<byte> Storage;
+    public PointerSpan<byte> Storage;
 
-    public Name(Memory<byte> memory) {
-        var span = memory.Span;
-
-        this.Version = BinaryPrimitives.ReadUInt16BigEndian(span);
-        var nameCount = BinaryPrimitives.ReadUInt16BigEndian(span[2..]);
-        var storageOffset = BinaryPrimitives.ReadUInt16BigEndian(span[4..]);
-        span = span[6..];
+    public Name(PointerSpan<byte> memory) {
+        var offset = 0;
+        memory.ReadBE(ref offset, out this.Version);
+        memory.ReadBE(ref offset, out ushort nameCount);
+        memory.ReadBE(ref offset, out ushort storageOffset);
 
         this.NameRecords = new NameRecord[nameCount];
         for (var i = 0; i < this.NameRecords.Length; i++) {
-            this.NameRecords[i] = new(span);
-            span = span[Unsafe.SizeOf<NameRecord>()..];
+            this.NameRecords[i] = new(memory[offset..]);
+            offset += Unsafe.SizeOf<NameRecord>();
         }
 
         if (this.Version == 0) {
             this.LanguageRecords = Array.Empty<LanguageRecord>();
         } else {
-            var languageCount = BinaryPrimitives.ReadUInt16BigEndian(span);
-            span = span[2..];
+            memory.ReadBE(ref offset, out ushort languageCount);
 
             this.LanguageRecords = new LanguageRecord[languageCount];
             for (var i = 0; i < this.LanguageRecords.Length; i++) {
-                this.LanguageRecords[i] = new(span);
-                span = span[Unsafe.SizeOf<LanguageRecord>()..];
+                this.LanguageRecords[i] = new(memory[offset..]);
+                offset += Unsafe.SizeOf<LanguageRecord>();
             }
         }
 
@@ -63,12 +60,13 @@ public struct Name {
         public ushort Length;
         public ushort StringOffset;
 
-        public NameRecord(Span<byte> span) {
+        public NameRecord(PointerSpan<byte> span) {
             this.PlatformAndEncoding = new(span);
-            this.LanguageId = BinaryPrimitives.ReadUInt16BigEndian(span[4..]);
-            this.NameId = (NameId)BinaryPrimitives.ReadUInt16BigEndian(span[6..]);
-            this.Length = BinaryPrimitives.ReadUInt16BigEndian(span[8..]);
-            this.StringOffset = BinaryPrimitives.ReadUInt16BigEndian(span[10..]);
+            var offset = Unsafe.SizeOf<PlatformAndEncoding>();
+            span.ReadBE(ref offset, out this.LanguageId);
+            span.ReadBE(ref offset, out this.NameId);
+            span.ReadBE(ref offset, out this.Length);
+            span.ReadBE(ref offset, out this.StringOffset);
         }
     }
 
@@ -76,9 +74,10 @@ public struct Name {
         public ushort Length;
         public ushort LanguageTagOffset;
 
-        public LanguageRecord(Span<byte> span) {
-            this.Length = BinaryPrimitives.ReadUInt16BigEndian(span);
-            this.LanguageTagOffset = BinaryPrimitives.ReadUInt16BigEndian(span[2..]);
+        public LanguageRecord(PointerSpan<byte> span) {
+            var offset = 0;
+            span.ReadBE(ref offset, out this.Length); 
+            span.ReadBE(ref offset, out this.LanguageTagOffset);
         }
     }
 }

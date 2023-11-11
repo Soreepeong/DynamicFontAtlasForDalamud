@@ -1,9 +1,8 @@
 using System;
-using System.Buffers.Binary;
 using System.Runtime.InteropServices;
 using System.Text;
 
-namespace DynamicFontAtlasLib.Internal.TrueType;
+namespace DynamicFontAtlasLib.Internal.TrueType.CommonStructs;
 
 [StructLayout(LayoutKind.Explicit, Size = 4)]
 public struct PlatformAndEncoding {
@@ -22,9 +21,10 @@ public struct PlatformAndEncoding {
     [FieldOffset(2)]
     public WindowsPlatformEncodingId WindowsEncoding;
 
-    public PlatformAndEncoding(Span<byte> source) {
-        this.Platform = (PlatformId)BinaryPrimitives.ReadUInt16BigEndian(source);
-        this.UnicodeEncoding = (UnicodePlatformEncodingId)BinaryPrimitives.ReadUInt16BigEndian(source[2..]);
+    public PlatformAndEncoding(PointerSpan<byte> source) {
+        var offset = 0;
+        source.ReadBE(ref offset, out this.Platform);
+        source.ReadBE(ref offset, out this.UnicodeEncoding);
     }
 
     public readonly string Decode(Span<byte> data) {

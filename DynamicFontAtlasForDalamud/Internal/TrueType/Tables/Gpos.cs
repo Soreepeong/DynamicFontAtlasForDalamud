@@ -10,7 +10,7 @@
 //
 //     public static readonly TagStruct DirectoryTableTag = new('G', 'P', 'O', 'S');
 //
-//     public Memory<byte> Memory;
+//     public PointerSpan<byte> Memory;
 //     public Fixed Version;
 //     public ushort ScriptListOffset;
 //     public ushort FeatureListOffset;
@@ -18,7 +18,7 @@
 //
 //     public uint FeatureVariationsOffset;
 //
-//     public Gpos(Memory<byte> memory) {
+//     public Gpos(PointerSpan<byte> memory) {
 //         var span = memory.Span;
 //         this.Version = new(span);
 //         this.ScriptListOffset = BinaryPrimitives.ReadUInt16BigEndian(span[4..]);
@@ -41,7 +41,7 @@
 // 		
 // 		
 // public struct PairAdjustmentPositioningSubtableFormat1 {
-//     public Memory<byte> Memory;
+//     public PointerSpan<byte> Memory;
 //     
 //     public ushort FormatId;
 //     public ushort CoverageOffset;
@@ -49,7 +49,7 @@
 //     public ValueFormatFlags ValueFormat2;
 //     public ushort PairSetCount;
 //     
-//     public PairAdjustmentPositioningSubtableFormat1(Memory<byte> memory) {
+//     public PairAdjustmentPositioningSubtableFormat1(PointerSpan<byte> memory) {
 //         var span = memory.Span;
 //         this.FormatId = BinaryPrimitives.ReadUInt16BigEndian(span[4..]);
 //         this.CoverageOffset = BinaryPrimitives.ReadUInt16BigEndian(span[4..]);

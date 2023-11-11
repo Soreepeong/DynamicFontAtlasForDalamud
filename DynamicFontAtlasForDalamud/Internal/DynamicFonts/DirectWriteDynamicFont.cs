@@ -5,6 +5,7 @@ using System.IO;
 using System.Linq;
 using DynamicFontAtlasLib.FontIdentificationStructs;
 using DynamicFontAtlasLib.Internal.DynamicFonts.DirectWriteHelpers;
+using DynamicFontAtlasLib.Internal.TrueType.Tables;
 using DynamicFontAtlasLib.Internal.Utilities;
 using DynamicFontAtlasLib.Internal.Utilities.ImGuiUtilities;
 using SharpDX.Direct2D1;
@@ -61,6 +62,16 @@ internal class DirectWriteDynamicFont : DynamicFont {
             this.Font.Ascent = MathF.Ceiling(this.Metrics.Ascent * this.multiplier);
             this.Font.Descent = MathF.Ceiling(this.Metrics.Descent * this.multiplier);
             this.LoadGlyphs(' ', (char)this.Font.FallbackChar, (char)this.Font.EllipsisChar, (char)this.Font.DotChar);
+
+            using var disposeStack2 = new DisposeStack();
+            if (this.face.TryGetFontTable((int)Kern.DirectoryTableTag.Value, out var kernTable, out var kernContext)) {
+                disposeStack2.Add(() => this.face.ReleaseFontTable(kernContext));
+                var kern = new Kern(new(kernTable));
+            }
+            if (this.face.TryGetFontTable((int)Cmap.DirectoryTableTag.Value, out var cmapTable, out var cmapContext)) {
+                disposeStack2.Add(() => this.face.ReleaseFontTable(cmapContext));
+                var cmap = new Cmap(new(cmapTable));
+            }
         } catch (Exception) {
             this.disposeStack.Dispose();
             throw;

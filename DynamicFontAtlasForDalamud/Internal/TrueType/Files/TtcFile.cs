@@ -2,19 +2,20 @@
 using System.Buffers.Binary;
 using System.Collections;
 using System.Collections.Generic;
+using DynamicFontAtlasLib.Internal.TrueType.CommonStructs;
 
 namespace DynamicFontAtlasLib.Internal.TrueType.Files;
 
 public struct TtcFile : IReadOnlyList<SfntFile> {
     public static readonly TagStruct FileTag = new('t', 't', 'c', 'f');
 
-    public Memory<byte> Memory;
+    public PointerSpan<byte> Memory;
     public TagStruct Tag;
     public ushort MajorVersion;
     public ushort MinorVersion;
     public int FontCount;
 
-    public TtcFile(Memory<byte> memory) {
+    public TtcFile(PointerSpan<byte> memory) {
         var span = memory.Span;
         this.Memory = memory;
         this.Tag = new(span);
