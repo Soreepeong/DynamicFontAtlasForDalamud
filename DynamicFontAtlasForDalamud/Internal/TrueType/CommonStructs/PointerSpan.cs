@@ -37,14 +37,24 @@ public static class PointerSpan {
     public static void ReadBE(this PointerSpan<byte> ps, ref int offset, out float value) { ps.ReadBE(offset, out value); offset += 4; }
     public static void ReadBE(this PointerSpan<byte> ps, ref int offset, out double value) { ps.ReadBE(offset, out value); offset += 8; }
 
-    public static T ReadEnumBE<T>(this PointerSpan<byte> ps, int offset) where T : unmanaged, Enum =>
-        Marshal.SizeOf<T>() switch {
-            1 => (T)(object)ps[offset],
-            2 => (T)(object)BinaryPrimitives.ReadInt16BigEndian(ps.Span[offset..]),
-            4 => (T)(object)BinaryPrimitives.ReadInt32BigEndian(ps.Span[offset..]),
-            8 => (T)(object)BinaryPrimitives.ReadInt64BigEndian(ps.Span[offset..]),
-            _ => throw new NotSupportedException(),
-        };
+    public static unsafe T ReadEnumBE<T>(this PointerSpan<byte> ps, int offset) where T : unmanaged, Enum {
+        switch (Marshal.SizeOf(Enum.GetUnderlyingType(typeof(T)))) {
+            case 1:
+                var b1 = ps.Span[offset];
+                return *(T*) &b1;
+            case 2:
+                var b2 = ps.ReadU16BE(offset);
+                return *(T*) &b2;
+            case 4:
+                var b4 = ps.ReadU32BE(offset);
+                return *(T*) &b4;
+            case 8:
+                var b8 = ps.ReadU64BE(offset);
+                return *(T*) &b8;
+            default:
+                throw new ArgumentException("Enum is not of size 1, 2, 4, or 8.", nameof(T), null);
+        }
+    }
     
     public static void ReadBE<T>(this PointerSpan<byte> ps, int offset, out T value) where T : unmanaged, Enum =>
         value = ps.ReadEnumBE<T>(offset);

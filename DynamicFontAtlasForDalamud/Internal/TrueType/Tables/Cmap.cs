@@ -4,6 +4,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using DynamicFontAtlasLib.Internal.TrueType.CommonStructs;
+using DynamicFontAtlasLib.Internal.TrueType.Enums;
 
 // ReSharper disable All
 

@@ -1,7 +1,8 @@
-﻿using System;
+﻿using System.Buffers.Binary;
 using System.Runtime.CompilerServices;
 using System.Text;
 using DynamicFontAtlasLib.Internal.TrueType.CommonStructs;
+using DynamicFontAtlasLib.Internal.TrueType.Enums;
 
 namespace DynamicFontAtlasLib.Internal.TrueType.Tables;
 
@@ -11,45 +12,35 @@ public struct Name {
 
     public static readonly TagStruct DirectoryTableTag = new('n', 'a', 'm', 'e');
 
-    public ushort Version;
-    public NameRecord[] NameRecords;
-    public LanguageRecord[] LanguageRecords;
-    public PointerSpan<byte> Storage;
+    public PointerSpan<byte> Memory;
 
-    public Name(PointerSpan<byte> memory) {
-        var offset = 0;
-        memory.ReadBE(ref offset, out this.Version);
-        memory.ReadBE(ref offset, out ushort nameCount);
-        memory.ReadBE(ref offset, out ushort storageOffset);
+    public Name(PointerSpan<byte> memory) => this.Memory = memory;
 
-        this.NameRecords = new NameRecord[nameCount];
-        for (var i = 0; i < this.NameRecords.Length; i++) {
-            this.NameRecords[i] = new(memory[offset..]);
-            offset += Unsafe.SizeOf<NameRecord>();
-        }
+    public ushort Version => this.Memory.ReadU16BE(0);
+    public ushort Count => this.Memory.ReadU16BE(2);
+    public ushort StorageOffset => this.Memory.ReadU16BE(4);
 
-        if (this.Version == 0) {
-            this.LanguageRecords = Array.Empty<LanguageRecord>();
-        } else {
-            memory.ReadBE(ref offset, out ushort languageCount);
+    public BigEndianPointerSpan<NameRecord> NameRecords => new(
+        this.Memory[6..].As<NameRecord>(Count),
+        NameRecord.ReverseEndianness);
 
-            this.LanguageRecords = new LanguageRecord[languageCount];
-            for (var i = 0; i < this.LanguageRecords.Length; i++) {
-                this.LanguageRecords[i] = new(memory[offset..]);
-                offset += Unsafe.SizeOf<LanguageRecord>();
-            }
-        }
+    public ushort LanguageCount => this.Version == 0 ? (ushort)0 : this.Memory.ReadU16BE(6 + this.NameRecords.NumBytes);
 
-        this.Storage = memory[storageOffset..];
-    }
+    public BigEndianPointerSpan<LanguageRecord> LanguageRecords => this.Version == 0
+        ? default
+        : new(
+            this.Memory[(8 + this.NameRecords.NumBytes)..].As<LanguageRecord>(this.LanguageCount),
+            LanguageRecord.ReverseEndianness);
+    
+    public PointerSpan<byte> Storage => this.Memory[this.StorageOffset..];
 
     public string GetNameByIndex(int nameIndex) {
-        ref var record = ref this.NameRecords[nameIndex];
+        var record = this.NameRecords[nameIndex];
         return record.PlatformAndEncoding.Decode(this.Storage.Span.Slice(record.StringOffset, record.Length));
     }
 
     public string GetLanguageName(int languageIndex) {
-        ref var record = ref this.LanguageRecords[languageIndex];
+        var record = this.LanguageRecords[languageIndex];
         return Encoding.ASCII.GetString(this.Storage.Span.Slice(record.LanguageTagOffset, record.Length));
     }
 
@@ -68,6 +59,14 @@ public struct Name {
             span.ReadBE(ref offset, out this.Length);
             span.ReadBE(ref offset, out this.StringOffset);
         }
+
+        public static NameRecord ReverseEndianness(NameRecord value) => new() {
+            PlatformAndEncoding = PlatformAndEncoding.ReverseEndianness(value.PlatformAndEncoding),
+            LanguageId = BinaryPrimitives.ReverseEndianness(value.LanguageId),
+            NameId = (NameId)BinaryPrimitives.ReverseEndianness((ushort)value.NameId),
+            Length = BinaryPrimitives.ReverseEndianness(value.Length),
+            StringOffset = BinaryPrimitives.ReverseEndianness(value.StringOffset),
+        };
     }
 
     public struct LanguageRecord {
@@ -79,5 +78,10 @@ public struct Name {
             span.ReadBE(ref offset, out this.Length); 
             span.ReadBE(ref offset, out this.LanguageTagOffset);
         }
+
+        public static LanguageRecord ReverseEndianness(LanguageRecord value) => new() {
+            Length = BinaryPrimitives.ReverseEndianness(value.Length),
+            LanguageTagOffset = BinaryPrimitives.ReverseEndianness(value.LanguageTagOffset),
+        };
     }
 }

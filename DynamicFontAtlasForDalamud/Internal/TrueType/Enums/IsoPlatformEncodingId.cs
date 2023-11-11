@@ -1,4 +1,4 @@
-namespace DynamicFontAtlasLib.Internal.TrueType;
+namespace DynamicFontAtlasLib.Internal.TrueType.Enums;
 
 public enum IsoPlatformEncodingId : ushort {
     Ascii = 0,

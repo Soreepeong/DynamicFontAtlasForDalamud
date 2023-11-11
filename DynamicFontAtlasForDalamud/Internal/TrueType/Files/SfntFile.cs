@@ -1,4 +1,3 @@
-using System;
 using System.Buffers.Binary;
 using System.Collections;
 using System.Collections.Generic;
@@ -34,7 +33,7 @@ public struct SfntFile : IReadOnlyDictionary<TagStruct, PointerSpan<byte>> {
     public IEnumerator<KeyValuePair<TagStruct, PointerSpan<byte>>> GetEnumerator() {
         var offset = 12;
         for (var i = 0; i < this.TableCount; i++) {
-            var dte = new DirectoryTableEntry(this.Memory.Span[offset..]);
+            var dte = new DirectoryTableEntry(this.Memory[offset..]);
             yield return new(dte.Tag, this.Memory.Slice(dte.Offset - this.OffsetInCollection, dte.Length));
             offset += Unsafe.SizeOf<DirectoryTableEntry>();
         }
@@ -57,16 +56,13 @@ public struct SfntFile : IReadOnlyDictionary<TagStruct, PointerSpan<byte>> {
     }
 
     public struct DirectoryTableEntry {
-        public TagStruct Tag;
-        public uint Checksum;
-        public int Offset;
-        public int Length;
+        public PointerSpan<byte> Memory;
 
-        public DirectoryTableEntry(Span<byte> span) {
-            this.Tag = new(span);
-            this.Checksum = BinaryPrimitives.ReadUInt16BigEndian(span[4..]);
-            this.Offset = BinaryPrimitives.ReadInt32BigEndian(span[8..]);
-            this.Length = BinaryPrimitives.ReadInt32BigEndian(span[12..]);
-        }
+        public DirectoryTableEntry(PointerSpan<byte> span) => this.Memory = span;
+
+        public TagStruct Tag => new(this.Memory);
+        public uint Checksum => this.Memory.ReadU32BE(4);
+        public int Offset => this.Memory.ReadI32BE(8);
+        public int Length => this.Memory.ReadI32BE(12);
     }
 }

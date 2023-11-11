@@ -167,7 +167,7 @@ public struct Kern : IEnumerable<(Kern.KerningPair Pair, bool Override)> {
             public PointerSpan<byte> Memory;
 
             public Subtable(PointerSpan<byte> memory) => this.Memory = memory;
-            
+
             public int Length => this.Memory.ReadI32BE(0);
             public CoverageFlags Flags => this.Memory.ReadEnumBE<CoverageFlags>(4);
             public byte Format => this.Memory[5];

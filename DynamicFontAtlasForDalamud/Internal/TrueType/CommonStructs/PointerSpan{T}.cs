@@ -27,6 +27,8 @@ public readonly unsafe struct PointerSpan<T> : IList<T>, IReadOnlyList<T>, IColl
 
     public int Length => this.Count;
 
+    public int NumBytes => sizeof(T) * this.Count;
+
     bool ICollection.IsSynchronized => false;
 
     object ICollection.SyncRoot => this;

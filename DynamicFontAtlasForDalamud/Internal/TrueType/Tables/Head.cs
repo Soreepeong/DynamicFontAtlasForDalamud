@@ -1,5 +1,5 @@
 using System;
-using System.Buffers.Binary;
+using DynamicFontAtlasLib.Internal.TrueType.CommonStructs;
 
 namespace DynamicFontAtlasLib.Internal.TrueType.Tables;
 
@@ -10,43 +10,27 @@ public struct Head {
     public const uint MagicNumberValue = 0x5F0F3CF5;
     public static readonly TagStruct DirectoryTableTag = new('h', 'e', 'a', 'd');
 
-    public Fixed Version;
-    public Fixed FontRevision;
-    public uint ChecksumAdjustment;
-    public uint MagicNumber;
-    public HeadFlags Flags;
-    public ushort UnitsPerEm;
-    public ulong CreatedTimestamp;
-    public ulong ModifiedTimestamp;
-    public ushort MinX;
-    public ushort MinY;
-    public ushort MaxX;
-    public ushort MaxY;
-    public MacStyleFlags MacStyle;
-    public ushort LowestRecommendedPpem;
-    public ushort FontDirectionHint;
-    public ushort IndexToLocFormat;
-    public ushort GlyphDataFormat;
+    public PointerSpan<byte> Memory;
 
-    public Head(Span<byte> span) {
-        this.Version = new(span);
-        this.FontRevision = new(span[4..]);
-        this.ChecksumAdjustment = BinaryPrimitives.ReadUInt32BigEndian(span[8..]);
-        this.MagicNumber = BinaryPrimitives.ReadUInt32BigEndian(span[12..]);
-        this.Flags = (HeadFlags)BinaryPrimitives.ReadUInt16BigEndian(span[16..]);
-        this.UnitsPerEm = BinaryPrimitives.ReadUInt16BigEndian(span[18..]);
-        this.CreatedTimestamp = BinaryPrimitives.ReadUInt64BigEndian(span[20..]);
-        this.ModifiedTimestamp = BinaryPrimitives.ReadUInt64BigEndian(span[28..]);
-        this.MinX = BinaryPrimitives.ReadUInt16BigEndian(span[36..]);
-        this.MinY = BinaryPrimitives.ReadUInt16BigEndian(span[38..]);
-        this.MaxX = BinaryPrimitives.ReadUInt16BigEndian(span[40..]);
-        this.MaxY = BinaryPrimitives.ReadUInt16BigEndian(span[42..]);
-        this.MacStyle = (MacStyleFlags)BinaryPrimitives.ReadUInt16BigEndian(span[44..]);
-        this.LowestRecommendedPpem = BinaryPrimitives.ReadUInt16BigEndian(span[46..]);
-        this.FontDirectionHint = BinaryPrimitives.ReadUInt16BigEndian(span[48..]);
-        this.IndexToLocFormat = BinaryPrimitives.ReadUInt16BigEndian(span[50..]);
-        this.GlyphDataFormat = BinaryPrimitives.ReadUInt16BigEndian(span[52..]);
-    }
+    public Head(PointerSpan<byte> memory) => this.Memory = memory;
+    
+    public Fixed Version => new(this.Memory);
+    public Fixed FontRevision => new(this.Memory[4..]);
+    public uint ChecksumAdjustment => this.Memory.ReadU32BE(8);
+    public uint MagicNumber => this.Memory.ReadU32BE(12);
+    public HeadFlags Flags => this.Memory.ReadEnumBE<HeadFlags>(16);
+    public ushort UnitsPerEm => this.Memory.ReadU16BE(18);
+    public ulong CreatedTimestamp => this.Memory.ReadU64BE(20);
+    public ulong ModifiedTimestamp => this.Memory.ReadU64BE(28);
+    public ushort MinX => this.Memory.ReadU16BE(36);
+    public ushort MinY => this.Memory.ReadU16BE(38);
+    public ushort MaxX => this.Memory.ReadU16BE(40);
+    public ushort MaxY => this.Memory.ReadU16BE(42);
+    public MacStyleFlags MacStyle => this.Memory.ReadEnumBE<MacStyleFlags>(44);
+    public ushort LowestRecommendedPpem => this.Memory.ReadU16BE(46);
+    public ushort FontDirectionHint => this.Memory.ReadU16BE(48);
+    public ushort IndexToLocFormat => this.Memory.ReadU16BE(50);
+    public ushort GlyphDataFormat => this.Memory.ReadU16BE(52);
 
     [Flags]
     public enum HeadFlags : ushort {

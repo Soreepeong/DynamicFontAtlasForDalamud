@@ -21,6 +21,8 @@ public readonly unsafe struct BigEndianPointerSpan<T>
 
     public int Length => this.Count;
 
+    public int NumBytes => sizeof(T) * this.Count;
+
     public bool IsSynchronized => true;
 
     public object SyncRoot => this;

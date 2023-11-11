@@ -1,6 +1,8 @@
 using System;
+using System.Buffers.Binary;
 using System.Runtime.InteropServices;
 using System.Text;
+using DynamicFontAtlasLib.Internal.TrueType.Enums;
 
 namespace DynamicFontAtlasLib.Internal.TrueType.CommonStructs;
 
@@ -26,6 +28,11 @@ public struct PlatformAndEncoding {
         source.ReadBE(ref offset, out this.Platform);
         source.ReadBE(ref offset, out this.UnicodeEncoding);
     }
+
+    public static PlatformAndEncoding ReverseEndianness(PlatformAndEncoding value) => new() {
+        Platform = (PlatformId)BinaryPrimitives.ReverseEndianness((ushort)value.Platform),
+        UnicodeEncoding = (UnicodePlatformEncodingId)BinaryPrimitives.ReverseEndianness((ushort)value.UnicodeEncoding),
+    };
 
     public readonly string Decode(Span<byte> data) {
         switch (this.Platform) {
