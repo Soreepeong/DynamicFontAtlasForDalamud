@@ -1,4 +1,8 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Linq;
+using System.Threading;
 using Dalamud.Interface.GameFonts;
 using SharpDX.DirectWrite;
 
@@ -114,4 +118,52 @@ public record struct FontIdent {
         { System: ({ } name, var variant) } => $"System: {name}({variant})",
         _ => "-",
     };
+
+    public static IEnumerable<(
+        (string Language, string Name)[] Names,
+        FontIdent[] Variants)> GetSystemFonts(
+        bool refreshSystem = false,
+        Func<FontFamily, bool>? familyExcludeTest = null,
+        Func<Font, bool>? fontExcludeTest = null,
+        CancellationToken cancellationToken = default) {
+        using var factory = new Factory();
+        using var collection = factory.GetSystemFontCollection(refreshSystem);
+
+        var names = new List<(string Language, string Name)>();
+        var variants = new List<FontIdent>();
+        foreach (var familyIndex in Enumerable.Range(0, collection.FontFamilyCount)) {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            using var family = collection.GetFontFamily(familyIndex);
+            if (family.FontCount == 0 || familyExcludeTest?.Invoke(family) is true)
+                continue;
+            
+            using var familyNames = family.FamilyNames;
+            names.Clear();
+            names.EnsureCapacity(familyNames.Count);
+            names.AddRange(Enumerable.Range(0, familyNames.Count)
+                .Select(x => (Language: familyNames.GetLocaleName(x), familyNames: familyNames.GetString(x))));
+
+            if (!names.Any())
+                continue;
+
+            var englishName = names
+                    .FirstOrDefault(x => x.Language.StartsWith("en", StringComparison.OrdinalIgnoreCase))
+                    .Name
+                ?? names.First().Name;
+
+            variants.Clear();
+            variants.EnsureCapacity(family.FontCount);
+            foreach (var fontIndex in Enumerable.Range(0, family.FontCount)) {
+                cancellationToken.ThrowIfCancellationRequested();
+
+                using var font = family.GetFont(fontIndex);
+                if (fontExcludeTest?.Invoke(font) is true)
+                    continue;
+                variants.Add(FromSystem(englishName, font.Weight, font.Stretch, font.Style));
+            }
+
+            yield return (Names: names.ToArray(), Variants: variants.ToArray());
+        }
+    }
 }

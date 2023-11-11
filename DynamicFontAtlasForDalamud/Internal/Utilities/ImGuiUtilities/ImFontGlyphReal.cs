@@ -1,7 +1,7 @@
 ﻿using System.Numerics;
 using System.Runtime.InteropServices;
 
-namespace DynamicFontAtlasLib.Utilities.ImGuiUtilities;
+namespace DynamicFontAtlasLib.Internal.Utilities.ImGuiUtilities;
 
 /// <summary>
 /// ImFontGlyph the correct version.

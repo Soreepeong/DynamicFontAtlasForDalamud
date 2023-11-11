@@ -1,6 +1,6 @@
 ﻿using Dalamud.Interface.GameFonts;
 
-namespace DynamicFontAtlasLib;
+namespace DynamicFontAtlasLib.Internal;
 
 internal static class Constants {
     public static readonly string?[] GameFontFileNames = {

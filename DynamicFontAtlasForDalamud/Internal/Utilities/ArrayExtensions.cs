@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace DynamicFontAtlasLib.Utilities;
+namespace DynamicFontAtlasLib.Internal.Utilities;
 
 internal static class ArrayExtensions {
     /// <summary>

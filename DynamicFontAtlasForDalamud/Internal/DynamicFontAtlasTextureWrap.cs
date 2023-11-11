@@ -1,15 +1,15 @@
 ﻿using System;
 using System.Linq;
 using Dalamud.Interface.Internal;
-using DynamicFontAtlasLib.Utilities;
-using DynamicFontAtlasLib.Utilities.StbRectPackSharp;
+using DynamicFontAtlasLib.Internal.Utilities;
+using DynamicFontAtlasLib.Internal.Utilities.StbRectPackSharp;
 using SharpDX.Direct3D;
 using SharpDX.Direct3D11;
 using SharpDX.DXGI;
 using Device = SharpDX.Direct3D11.Device;
 using MapFlags = SharpDX.Direct3D11.MapFlags;
 
-namespace DynamicFontAtlasLib;
+namespace DynamicFontAtlasLib.Internal;
 
 /// <summary>
 /// A TextureWrap for use from <see cref="DynamicFontAtlas"/>.

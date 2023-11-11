@@ -5,7 +5,7 @@ using System.Linq;
 using System.Numerics;
 using ImGuiNET;
 
-namespace DynamicFontAtlasLib.Utilities.ImGuiUtilities;
+namespace DynamicFontAtlasLib.Internal.Utilities.ImGuiUtilities;
 
 /// <summary>
 /// Wrapper for ImVector.
@@ -278,10 +278,10 @@ internal unsafe class ImVectorWrapper<T> : IList<T>, IList, IReadOnlyList<T>
     }
 
     /// <inheritdoc/>
-    void IList<T>.RemoveAt(int index) => RemoveAt(index);
+    void IList<T>.RemoveAt(int index) => this.RemoveAt(index);
 
     /// <inheritdoc/>
-    void IList.RemoveAt(int index) => RemoveAt(index);
+    void IList.RemoveAt(int index) => this.RemoveAt(index);
 
     /// <summary>
     /// Sets the capacity exactly as requested.

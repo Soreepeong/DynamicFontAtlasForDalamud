@@ -5,9 +5,9 @@
 using System;
 using System.Collections.Generic;
 using System.Drawing;
-using static DynamicFontAtlasLib.Utilities.StbRectPackSharp.StbRectPack;
+using static DynamicFontAtlasLib.Internal.Utilities.StbRectPackSharp.StbRectPack;
 
-namespace DynamicFontAtlasLib.Utilities.StbRectPackSharp;
+namespace DynamicFontAtlasLib.Internal.Utilities.StbRectPackSharp;
 
 internal class PackerRectangle {
     public Rectangle Rectangle { get; private set; }

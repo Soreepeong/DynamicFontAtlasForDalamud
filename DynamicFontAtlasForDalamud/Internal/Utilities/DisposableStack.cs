@@ -4,12 +4,12 @@ using System.Diagnostics.CodeAnalysis;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 
-namespace DynamicFontAtlasLib.Utilities;
+namespace DynamicFontAtlasLib.Internal.Utilities;
 
 /// <summary>
 /// Utility class for managing finalizing stuff.
 /// </summary>
-public sealed class DisposeStack : IDisposable, IAsyncDisposable {
+internal sealed class DisposeStack : IDisposable, IAsyncDisposable {
     private readonly Stack<object> stack = new();
 
     /// <inheritdoc cref="Stack{T}.EnsureCapacity"/>

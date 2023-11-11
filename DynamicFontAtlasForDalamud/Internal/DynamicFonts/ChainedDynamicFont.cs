@@ -5,9 +5,9 @@ using System.Linq;
 using System.Numerics;
 using System.Text.Unicode;
 using DynamicFontAtlasLib.FontIdentificationStructs;
-using DynamicFontAtlasLib.Utilities.ImGuiUtilities;
+using DynamicFontAtlasLib.Internal.Utilities.ImGuiUtilities;
 
-namespace DynamicFontAtlasLib.DynamicFonts;
+namespace DynamicFontAtlasLib.Internal.DynamicFonts;
 
 internal unsafe class ChainedDynamicFont : DynamicFont {
     private readonly float globalScale;

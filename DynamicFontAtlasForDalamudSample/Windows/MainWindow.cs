@@ -1,14 +1,13 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Text.Unicode;
-using System.Threading.Tasks;
 using Dalamud.Interface;
 using Dalamud.Interface.GameFonts;
 using Dalamud.Interface.Windowing;
 using DynamicFontAtlasLib;
 using DynamicFontAtlasLib.FontIdentificationStructs;
-using DynamicFontAtlasLib.Utilities;
 using ImGuiNET;
 
 namespace OnDemandFontsSample.Windows;
@@ -59,8 +58,9 @@ public class MainWindow : Window, IDisposable {
             },
         });
 
+    private readonly List<FontIdent> systemEntries = new();
+
     private unsafe ImGuiListClipperPtr entryClipper = new(ImGuiNative.ImGuiListClipper_ImGuiListClipper());
-    private Task<List<FontIdent>>? systemEntries;
 
     private string buffer = "ABCDE abcde 12345 가나다 漢字氣気 あかさたな アカサタナ";
 
@@ -94,13 +94,14 @@ public class MainWindow : Window, IDisposable {
                 this.Plugin.PluginInterface.DalamudAssetDirectory,
                 this.Plugin.DataManager,
                 this.Plugin.TextureProvider) {
-                FallbackFont = FontIdent.FromSystem("Gulim"),
+                FallbackFontIdent = FontIdent.FromSystem("Gulim"),
             };
 
-            this.systemEntries =
-                FontEnumeration
-                    .GetSystemFontsAsync("ko", excludeSimulated: false)
-                    .ContinueWith(res => res.Result.SelectMany(x => x.Variants).ToList());
+            this.systemEntries.Clear();
+            this.systemEntries.AddRange(
+                FontIdent.GetSystemFonts()
+                    .SelectMany(x => x.Variants)
+                    .OrderBy(x => x.System!.Value.Name));
         }
 
         if (this.atlas is null)
@@ -172,26 +173,23 @@ public class MainWindow : Window, IDisposable {
         }
 
         if (ImGui.CollapsingHeader("System fonts")) {
-            if (this.systemEntries?.IsCompletedSuccessfully is true) {
-                var r = this.systemEntries.Result;
-                this.entryClipper.Begin(r.Count, this.fontSize + ImGui.GetStyle().FramePadding.Y * 2);
-                while (this.entryClipper.Step()) {
-                    for (var i = this.entryClipper.DisplayStart; i < this.entryClipper.DisplayEnd; i++) {
-                        if (i < 0)
-                            continue;
+            this.entryClipper.Begin(this.systemEntries.Count, this.fontSize + (ImGui.GetStyle().FramePadding.Y * 2));
+            while (this.entryClipper.Step()) {
+                for (var i = this.entryClipper.DisplayStart; i < this.entryClipper.DisplayEnd; i++) {
+                    if (i < 0)
+                        continue;
 
-                        var entry = r[i];
-                        using (this.atlas.PushFontScoped(entry, this.fontSize)) {
-                            var s = $"{entry}: {this.buffer}";
-                            this.atlas.LoadGlyphs(s);
+                    var entry = this.systemEntries[i];
+                    using (this.atlas.PushFontScoped(entry, this.fontSize)) {
+                        var s = $"{entry}: {this.buffer}";
+                        this.atlas.LoadGlyphs(s);
 
-                            ImGui.TextUnformatted(s);
-                        }
+                        ImGui.TextUnformatted(s);
                     }
                 }
-
-                this.entryClipper.End();
             }
+
+            this.entryClipper.End();
         }
 
         if (ImGui.CollapsingHeader("Atlas textures")) {

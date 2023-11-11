@@ -3,7 +3,7 @@
 using System;
 using System.Runtime.InteropServices;
 
-namespace DynamicFontAtlasLib.Utilities.StbRectPackSharp
+namespace DynamicFontAtlasLib.Internal.Utilities.StbRectPackSharp
 {
 	unsafe partial class StbRectPack
 	{

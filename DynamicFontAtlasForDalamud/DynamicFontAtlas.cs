@@ -11,10 +11,11 @@ using Dalamud.Interface.GameFonts;
 using Dalamud.Interface.Internal;
 using Dalamud.Interface.Utility;
 using Dalamud.Plugin.Services;
-using DynamicFontAtlasLib.DynamicFonts;
 using DynamicFontAtlasLib.FontIdentificationStructs;
-using DynamicFontAtlasLib.Utilities;
-using DynamicFontAtlasLib.Utilities.ImGuiUtilities;
+using DynamicFontAtlasLib.Internal;
+using DynamicFontAtlasLib.Internal.DynamicFonts;
+using DynamicFontAtlasLib.Internal.Utilities;
+using DynamicFontAtlasLib.Internal.Utilities.ImGuiUtilities;
 using ImGuiNET;
 using Lumina.Data.Files;
 using SharpDX.Direct3D11;
@@ -109,7 +110,7 @@ public sealed unsafe class DynamicFontAtlas : IDisposable {
     /// <summary>
     /// Gets or sets the fallback font. Once set, until a call to <see cref="Clear"/>, the changes may not apply.
     /// </summary>
-    public FontIdent? FallbackFont {
+    public FontIdent? FallbackFontIdent {
         get => this.fallbackFontIdent;
         set {
             if (this.fallbackFontIdent == value)

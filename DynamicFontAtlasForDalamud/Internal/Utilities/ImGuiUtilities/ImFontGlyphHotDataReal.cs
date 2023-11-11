@@ -1,4 +1,4 @@
-﻿namespace DynamicFontAtlasLib.Utilities.ImGuiUtilities;
+﻿namespace DynamicFontAtlasLib.Internal.Utilities.ImGuiUtilities;
 
 /// <summary>
 /// ImFontGlyphHotData the correct version.

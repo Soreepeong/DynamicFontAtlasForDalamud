@@ -5,10 +5,10 @@ using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text.Unicode;
 using DynamicFontAtlasLib.FontIdentificationStructs;
-using DynamicFontAtlasLib.Utilities.ImGuiUtilities;
+using DynamicFontAtlasLib.Internal.Utilities.ImGuiUtilities;
 using ImGuiNET;
 
-namespace DynamicFontAtlasLib.DynamicFonts;
+namespace DynamicFontAtlasLib.Internal.DynamicFonts;
 
 internal abstract unsafe class DynamicFont : IDisposable {
     protected const int FrequentKerningPairsMaxCodepoint = 128;
@@ -101,7 +101,7 @@ internal abstract unsafe class DynamicFont : IDisposable {
     public abstract bool IsFontIdent(in FontIdent ident);
 
     protected bool ApplyFallbackGlyph(char codepoint) {
-        if (this.Atlas.FallbackFont is not { } fi)
+        if (this.Atlas.FallbackFontIdent is not { } fi)
             return false;
 
         if (this.LoadAttemptedGlyphs[codepoint])

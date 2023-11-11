@@ -4,10 +4,10 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using DynamicFontAtlasLib.DynamicFonts.DirectWriteHelpers;
 using DynamicFontAtlasLib.FontIdentificationStructs;
-using DynamicFontAtlasLib.Utilities;
-using DynamicFontAtlasLib.Utilities.ImGuiUtilities;
+using DynamicFontAtlasLib.Internal.DynamicFonts.DirectWriteHelpers;
+using DynamicFontAtlasLib.Internal.Utilities;
+using DynamicFontAtlasLib.Internal.Utilities.ImGuiUtilities;
 using SharpDX.Direct2D1;
 using SharpDX.DirectWrite;
 using Factory = SharpDX.DirectWrite.Factory;
@@ -15,7 +15,7 @@ using Factory3 = SharpDX.DirectWrite.Factory3;
 using TextAntialiasMode = SharpDX.DirectWrite.TextAntialiasMode;
 using UnicodeRange = System.Text.Unicode.UnicodeRange;
 
-namespace DynamicFontAtlasLib.DynamicFonts;
+namespace DynamicFontAtlasLib.Internal.DynamicFonts;
 
 internal class DirectWriteDynamicFont : DynamicFont {
     private const MeasuringMode MeasuringMode = SharpDX.Direct2D1.MeasuringMode.GdiNatural;

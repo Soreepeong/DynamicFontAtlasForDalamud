@@ -4,7 +4,7 @@
 
 using System;
 
-namespace DynamicFontAtlasLib.Utilities.StbRectPackSharp;
+namespace DynamicFontAtlasLib.Internal.Utilities.StbRectPackSharp;
 
 internal static unsafe partial class StbRectPack {
     public struct stbrp_context : IDisposable {

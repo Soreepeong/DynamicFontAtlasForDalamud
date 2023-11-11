@@ -6,7 +6,7 @@ using System.Text.Unicode;
 using DynamicFontAtlasLib.FontIdentificationStructs;
 using ImGuiNET;
 
-namespace DynamicFontAtlasLib.DynamicFonts;
+namespace DynamicFontAtlasLib.Internal.DynamicFonts;
 
 internal unsafe class ScaledDynamicFont : DynamicFont {
     public ScaledDynamicFont(DynamicFontAtlas atlas, DynamicFont src, float scale)

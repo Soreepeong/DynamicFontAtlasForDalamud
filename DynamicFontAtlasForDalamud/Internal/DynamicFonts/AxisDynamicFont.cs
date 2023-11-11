@@ -6,9 +6,9 @@ using System.Numerics;
 using System.Text.Unicode;
 using Dalamud.Interface.GameFonts;
 using DynamicFontAtlasLib.FontIdentificationStructs;
-using DynamicFontAtlasLib.Utilities.ImGuiUtilities;
+using DynamicFontAtlasLib.Internal.Utilities.ImGuiUtilities;
 
-namespace DynamicFontAtlasLib.DynamicFonts;
+namespace DynamicFontAtlasLib.Internal.DynamicFonts;
 
 internal unsafe class AxisDynamicFont : DynamicFont {
     public AxisDynamicFont(

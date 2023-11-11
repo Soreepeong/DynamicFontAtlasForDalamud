@@ -5,7 +5,7 @@
 using System;
 using System.Runtime.InteropServices;
 
-namespace DynamicFontAtlasLib.Utilities.StbRectPackSharp;
+namespace DynamicFontAtlasLib.Internal.Utilities.StbRectPackSharp;
 
 internal static unsafe class CRuntime {
     public static void* malloc(ulong size) {

@@ -2,7 +2,7 @@ using System;
 using SharpDX;
 using SharpDX.DirectWrite;
 
-namespace DynamicFontAtlasLib.DynamicFonts.DirectWriteHelpers;
+namespace DynamicFontAtlasLib.Internal.DynamicFonts.DirectWriteHelpers;
 
 internal class MemoryFontLoader : CallbackBase, FontCollectionLoader, FontFileLoader {
     internal static readonly ulong Signature = 0x855ba86686681e20UL;
