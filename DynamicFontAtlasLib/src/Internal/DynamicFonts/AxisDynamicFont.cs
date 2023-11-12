@@ -1,12 +1,12 @@
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Linq;
 using System.Numerics;
 using System.Text.Unicode;
 using Dalamud.Interface.GameFonts;
 using DynamicFontAtlasLib.FontIdentificationStructs;
 using DynamicFontAtlasLib.Internal.Utilities.ImGuiUtilities;
+using ImGuiNET;
 
 namespace DynamicFontAtlasLib.Internal.DynamicFonts;
 
@@ -66,43 +66,16 @@ internal unsafe class AxisDynamicFont : DynamicFont {
         }
 
         this.KerningPairs.EnsureCapacity(fdt.Distances.Count);
-        foreach (var fdtk in fdt.Distances) {
-            var l = fdtk.LeftInt;
-            if (l > char.MaxValue)
-                break;
-
-            var r = fdtk.RightInt;
-            if (r > char.MaxValue)
-                continue;
-
-            var d = fdtk.RightOffset;
-            if (d == 0)
-                continue;
-
-            if (l < FrequentKerningPairsMaxCodepoint && r < FrequentKerningPairsMaxCodepoint)
-                this.FrequentKerningPairs[(l * FrequentKerningPairsMaxCodepoint) + r] = d;
-
-            this.KerningPairs.Add(
-                new() {
-                    AdvanceXAdjustment = d,
-                    Left = unchecked((ushort)l),
-                    Right = unchecked((ushort)r),
-                });
-
-            ref var rhd = ref this.IndexedHotData[r];
-            var count = rhd.Count;
-            if (count == 0)
-                rhd.Offset = this.KerningPairs.Length - 1;
-
-            Debug.Assert(count + 1 < 1 << 12, "Too many kerning entry");
-
-            rhd.Count = ++count;
-
-            // If linear search takes at least 32 iterations,
-            // swap to bisect which should do the job in 5 iterations.
-            if (count == 32)
-                rhd.UseBisect = true;
-        }
+        this.ReplaceKerningPairs(fdt.Distances
+            .Select(x => (Left: x.LeftInt, Right: x.RightInt, Offset: x.RightOffset))
+            .Where(x => x is { Left: <= char.MaxValue, Right: <= char.MaxValue })
+            .OrderBy(x => x.Right)
+            .ThenBy(x => x.Left)
+            .Select(x => new ImFontKerningPair {
+                Left = unchecked((ushort)x.Left),
+                Right = unchecked((ushort)x.Right),
+                AdvanceXAdjustment = x.Offset,
+            }));
 
         this.Font.FontSize = MathF.Floor(fdt.FontHeader.Size * 4 / 3);
         this.Font.FallbackChar = this.FirstAvailableChar(

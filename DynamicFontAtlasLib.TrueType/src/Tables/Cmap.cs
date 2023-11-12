@@ -384,7 +384,7 @@ public struct Cmap {
         public override ushort CharToGlyph(int c) {
             var groups = this.Groups;
 
-            var i = groups.BinarySearch(new() { EndCharCode = c });
+            var i = groups.BinarySearch((in MapGroup value) => c.CompareTo(value.EndCharCode));
             if (i < 0)
                 return 0;
 

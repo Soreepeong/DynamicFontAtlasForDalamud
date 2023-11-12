@@ -1,6 +1,7 @@
 using System;
 using System.Buffers;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.IO;
 using System.Linq;
 using DynamicFontAtlasLib.FontIdentificationStructs;
@@ -8,6 +9,7 @@ using DynamicFontAtlasLib.Internal.DynamicFonts.DirectWriteHelpers;
 using DynamicFontAtlasLib.TrueType.Tables;
 using DynamicFontAtlasLib.Internal.Utilities;
 using DynamicFontAtlasLib.Internal.Utilities.ImGuiUtilities;
+using ImGuiNET;
 using SharpDX.Direct2D1;
 using SharpDX.DirectWrite;
 using Factory = SharpDX.DirectWrite.Factory;
@@ -63,17 +65,14 @@ internal class DirectWriteDynamicFont : DynamicFont {
             this.Font.Descent = MathF.Ceiling(this.Metrics.Descent * this.multiplier);
             this.LoadGlyphs(' ', (char)this.Font.FallbackChar, (char)this.Font.EllipsisChar, (char)this.Font.DotChar);
 
-            using var disposeStack2 = new DisposeStack();
-            var kern = default(Kern);
-            var cmap = default(Cmap);
-            if (this.face.TryGetFontTable((int)Kern.DirectoryTableTag.NativeValue, out var kernTable, out var kernContext)) {
-                disposeStack2.Add(() => this.face.ReleaseFontTable(kernContext));
-                kern = new(kernTable.ToPointerSpan());
-            }
-            if (this.face.TryGetFontTable((int)Cmap.DirectoryTableTag.NativeValue, out var cmapTable, out var cmapContext)) {
-                disposeStack2.Add(() => this.face.ReleaseFontTable(cmapContext));
-                cmap = new(cmapTable.ToPointerSpan());
-            }
+            var rawDistances = atlas.Cache.Get(ident, () => ExtractRawKerningDistances(this.face));
+            this.KerningPairs.EnsureCapacity(rawDistances.Length);
+            this.ReplaceKerningPairs(rawDistances
+                .Select(x => new ImFontKerningPair {
+                    Left = x.Left,
+                    Right = x.Right,
+                    AdvanceXAdjustment = MathF.Round(x.Value * this.multiplier),
+                }));
         } catch (Exception) {
             this.disposeStack.Dispose();
             throw;
@@ -380,5 +379,60 @@ internal class DirectWriteDynamicFont : DynamicFont {
             this.disposeStack.Dispose();
 
         base.Dispose(disposing);
+    }
+
+    private static (char Left, char Right, short Value)[] ExtractRawKerningDistances(FontFace face) {
+        using var disposeStack = new DisposeStack();
+        if (!face.TryGetFontTable((int)Cmap.DirectoryTableTag.NativeValue,
+                out var cmapTable,
+                out var cmapContext)) {
+            return Array.Empty<(char, char, short)>();
+        }
+        
+        disposeStack.Add(() => face.ReleaseFontTable(cmapContext));
+        var cmap = new Cmap(cmapTable.ToPointerSpan());
+        if (cmap.UnicodeTable is not { } unicodeTable)
+            return Array.Empty<(char, char, short)>();
+
+        var glyphToCodepoints = unicodeTable
+            .GroupBy(x => x.Value, x => x.Key)
+            .OrderBy(x => x.Key)
+            .ToDictionary(
+                x => x.Key,
+                x => x.Where(y => y <= ushort.MaxValue)
+                    .Select(y => (char)y)
+                    .ToImmutableSortedSet());
+
+        if (face.TryGetFontTable((int)Kern.DirectoryTableTag.NativeValue,
+                out var kernTable,
+                out var kernContext)) {
+            disposeStack.Add(() => face.ReleaseFontTable(kernContext));
+            var kern = new Kern(kernTable.ToPointerSpan());
+            return kern.EnumerateHorizontalPairs()
+                .SelectMany(x => glyphToCodepoints.GetValueOrDefault(x.Left, ImmutableSortedSet<char>.Empty)
+                    .Select(lc => (Left: lc, x.Right, x.Value)))
+                .SelectMany(x => glyphToCodepoints.GetValueOrDefault(x.Right, ImmutableSortedSet<char>.Empty)
+                    .Select(rc => (x.Left, Right: rc, x.Value)))
+                .OrderBy(x => x.Right)
+                .ThenBy(x => x.Left)
+                .ToArray();
+        }
+
+        if (face.TryGetFontTable((int)Gpos.DirectoryTableTag.NativeValue,
+                out var gposTable,
+                out var gposContext)) {
+            disposeStack.Add(() => face.ReleaseFontTable(gposContext));
+            var gpos = new Gpos(gposTable.ToPointerSpan());
+            return gpos.ExtractAdvanceX()
+                .SelectMany(x => glyphToCodepoints.GetValueOrDefault(x.Left, ImmutableSortedSet<char>.Empty)
+                    .Select(lc => (Left: lc, x.Right, x.Value)))
+                .SelectMany(x => glyphToCodepoints.GetValueOrDefault(x.Right, ImmutableSortedSet<char>.Empty)
+                    .Select(rc => (x.Left, Right: rc, x.Value)))
+                .OrderBy(x => x.Right)
+                .ThenBy(x => x.Left)
+                .ToArray();
+        }
+
+        return Array.Empty<(char, char, short)>();
     }
 }

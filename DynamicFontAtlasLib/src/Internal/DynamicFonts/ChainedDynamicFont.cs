@@ -40,17 +40,31 @@ internal unsafe class ChainedDynamicFont : DynamicFont {
             + MathF.Floor((chain.PrimaryFont.SizePx * this.globalScale * (chain.LineHeight - 1f)) / 2);
 
         this.LoadGlyphs(' ', (char)this.Font.FallbackChar, (char)this.Font.EllipsisChar, (char)this.Font.DotChar);
+
+        var rawDistances = atlas.Cache.Get(chain,
+            () => this.ZipChainFont()
+                .Reverse()
+                .SelectMany(x => x.Second.KerningPairs.Where(y =>
+                    x.First.RangeContainsCharacter(y.Left) && x.First.RangeContainsCharacter(y.Right)))
+                .OrderBy(x => x.Right)
+                .ThenBy(x => x.Left)
+                .ToArray());
+        this.KerningPairs.EnsureCapacity(rawDistances.Length);
+        this.ReplaceKerningPairs(rawDistances);
     }
 
     public FontChain Chain { get; set; }
 
     public IReadOnlyList<DynamicFont> Subfonts { get; set; }
 
-    /// <inheritdoc/>
-    public override bool IsCharAvailable(char c) =>
+    private IEnumerable<(FontChainEntry First, DynamicFont Second)> ZipChainFont() =>
         this.Chain.SecondaryFonts
             .Prepend(this.Chain.PrimaryFont)
-            .Zip(this.Subfonts)
+            .Zip(this.Subfonts);
+
+    /// <inheritdoc/>
+    public override bool IsCharAvailable(char c) =>
+        this.ZipChainFont()
             .Any(x => x.First.RangeContainsCharacter(c) && x.Second.IsCharAvailable(c));
 
     /// <inheritdoc/>
@@ -64,7 +78,7 @@ internal unsafe class ChainedDynamicFont : DynamicFont {
         this.EnsureIndex(coll.Max());
 
         var changed = false;
-        foreach (var (entry, font) in this.Chain.SecondaryFonts.Prepend(this.Chain.PrimaryFont).Zip(this.Subfonts)) {
+        foreach (var (entry, font) in this.ZipChainFont()) {
             font.LoadGlyphs(coll);
             foreach (var c in coll)
                 changed |= this.EnsureCharacter(c, entry, font);
@@ -90,7 +104,7 @@ internal unsafe class ChainedDynamicFont : DynamicFont {
         this.EnsureIndex(coll.Max(x => x.FirstCodePoint + (x.Length - 1)));
 
         var changed = false;
-        foreach (var (entry, font) in this.Chain.SecondaryFonts.Prepend(this.Chain.PrimaryFont).Zip(this.Subfonts)) {
+        foreach (var (entry, font) in this.ZipChainFont()) {
             font.LoadGlyphs(coll);
             foreach (var c in coll) {
                 foreach (var cc in Enumerable.Range(c.FirstCodePoint, c.Length))

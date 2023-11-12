@@ -1,31 +1,38 @@
-using System.Diagnostics.Contracts;
-using System.Runtime.CompilerServices;
+using System.Buffers.Binary;
+using DynamicFontAtlasLib.TrueType.CommonStructs;
 
 namespace DynamicFontAtlasLib.TrueType;
 
 #pragma warning disable CS0649
-public readonly ref struct CoverageTable {
-    private readonly Span<byte> data;
+public readonly struct CoverageTable {
+    public readonly PointerSpan<byte> Memory;
 
-    public CoverageTable(Span<byte> data) => this.data = data;
+    public CoverageTable(PointerSpan<byte> memory) => this.Memory = memory;
 
-    public ref HeaderStruct Header => ref this.data.AsRef<HeaderStruct>();
+    public CoverageFormat Format => this.Memory.ReadEnumBig<CoverageFormat>(0);
+    public ushort Count => this.Memory.ReadU16Big(2);
 
-    public Span<ushort> Glyphs =>
-        this.data[Unsafe.SizeOf<HeaderStruct>()..].AsSpan<ushort>(this.Header.Count);
+    public BigEndianPointerSpan<ushort> Glyphs => this.Format == CoverageFormat.Glyphs
+        ? new(
+            this.Memory[4..].As<ushort>(this.Count),
+            BinaryPrimitives.ReverseEndianness)
+        : new();
 
-    public Span<RangeRecord> RangeRecords =>
-        this.data[Unsafe.SizeOf<HeaderStruct>()..].AsSpan<RangeRecord>(this.Header.Count);
-    
-    [Pure]
+    public BigEndianPointerSpan<RangeRecord> RangeRecords => this.Format == CoverageFormat.RangeRecords
+        ? new(
+            this.Memory[4..].As<RangeRecord>(this.Count),
+            RangeRecord.ReverseEndianness)
+        : new();
+
     public int GetCoverageIndex(ushort glyphId) {
-        switch (this.Header.FormatId) {
-            case 1:
+        switch (this.Format) {
+            case CoverageFormat.Glyphs:
                 return this.Glyphs.BinarySearch(glyphId);
 
-            case 2:
-            {
-                var index = this.RangeRecords.BinarySearch(new RangeRecord { EndGlyphId = glyphId });
+            case CoverageFormat.RangeRecords: {
+                var index = this.RangeRecords.BinarySearch(
+                    (in RangeRecord record) => glyphId.CompareTo(record.EndGlyphId));
+
                 if (index >= 0 && this.RangeRecords[index].ContainsGlyph(glyphId))
                     return index;
 
@@ -36,19 +43,23 @@ public readonly ref struct CoverageTable {
         }
     }
 
-    public struct HeaderStruct {
-        public ushort FormatId;
-        public ushort Count;
+    public enum CoverageFormat : ushort {
+        Glyphs = 1,
+        RangeRecords = 2,
     }
 
-    public struct RangeRecord : IComparable<RangeRecord> {
+    public struct RangeRecord {
         public ushort StartGlyphId;
         public ushort EndGlyphId;
         public ushort StartCoverageIndex;
-        
-        public int CompareTo(RangeRecord other) => this.EndGlyphId.CompareTo(other.EndGlyphId);
 
         public bool ContainsGlyph(ushort glyphId) =>
             this.StartGlyphId <= glyphId && glyphId <= this.EndGlyphId;
+
+        public static RangeRecord ReverseEndianness(RangeRecord value) => new() {
+            StartGlyphId = BinaryPrimitives.ReverseEndianness(value.StartGlyphId),
+            EndGlyphId = BinaryPrimitives.ReverseEndianness(value.EndGlyphId),
+            StartCoverageIndex = BinaryPrimitives.ReverseEndianness(value.StartCoverageIndex),
+        };
     }
 }

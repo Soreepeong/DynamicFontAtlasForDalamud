@@ -36,7 +36,6 @@ public sealed unsafe class DynamicFontAtlas : IDisposable {
     private readonly Dictionary<(FontIdent Ident, int SizePx), DynamicFont> fontEntries = new();
     private readonly Dictionary<(FontChain Chain, float Scale), DynamicFont> fontChains = new();
     private readonly Dictionary<nint, DynamicFont> fontPtrToFont = new();
-    private readonly Dictionary<string, FdtReader> gameFdtFiles = new();
     private readonly Dictionary<string, int[]> gameFontTextures = new();
     private readonly Dictionary<FontChain, Exception> failedChains = new();
     private readonly Dictionary<(FontIdent Ident, int SizePx), Exception> failedIdents = new();
@@ -55,11 +54,14 @@ public sealed unsafe class DynamicFontAtlas : IDisposable {
     /// <param name="dalamudAssetDirectory"></param>
     /// <param name="dataManager">An instance of IDataManager.</param>
     /// <param name="textureProvider">An instance of ITextureProvider.</param>
+    /// <param name="cache">Cache.</param>
     public DynamicFontAtlas(
         Device device,
         DirectoryInfo dalamudAssetDirectory,
         IDataManager dataManager,
-        ITextureProvider textureProvider) {
+        ITextureProvider textureProvider,
+        IDynamicFontAtlasCache cache) {
+        this.Cache = cache;
         try {
             this.device = this.disposeStack.Add(device.QueryInterface<Device>());
             this.dalamudAssetDirectory = dalamudAssetDirectory;
@@ -139,6 +141,11 @@ public sealed unsafe class DynamicFontAtlas : IDisposable {
     /// Gets the reasons why <see cref="FontIdent"/>s have failed to load.
     /// </summary>
     public IReadOnlyDictionary<(FontIdent Ident, int SizePx), Exception> FailedIdents => this.failedIdents;
+
+    /// <summary>
+    /// Gets the cache associated.
+    /// </summary>
+    internal IDynamicFontAtlasCache Cache { get; }
 
     /// <summary>
     /// Gets the list of associated <see cref="IDalamudTextureWrap"/>.
@@ -356,8 +363,7 @@ public sealed unsafe class DynamicFontAtlas : IDisposable {
                         const string filename = "font{}.tex";
 
                         var fdtPath = gfs.FamilyAndSize.GetFdtPath();
-                        if (!this.gameFdtFiles.TryGetValue(fdtPath, out var fdt))
-                            this.gameFdtFiles.Add(fdtPath, fdt = new(this.dataManager.GetFile(fdtPath)!.Data));
+                        var fdt = this.Cache.Get(fdtPath, () => new FdtReader(this.dataManager.GetFile(fdtPath)!.Data));
 
                         var numExpectedTex = fdt.Glyphs.Max(x => x.TextureFileIndex) + 1;
                         if (!this.gameFontTextures.TryGetValue(filename, out var textureIndices)
@@ -379,10 +385,15 @@ public sealed unsafe class DynamicFontAtlas : IDisposable {
                                         continue;
                                     }
 
-                                    newTextureWraps[i] = errorDispose.Add(this.textureProvider.GetTexture(
-                                        this.dataManager.GetFile<TexFile>($"common/font/font{1 + i}.tex")
-                                        ?? throw new FileNotFoundException($"Texture #{1 + i} not found")));
+                                    var texPath = $"common/font/font{1 + i}.tex";
+                                    var wrap = new CachedDalamudTextureWrap(this.Cache.GetScoped(
+                                        texPath,
+                                        () => this.textureProvider.GetTexture(this.Cache.Get(
+                                            texPath,
+                                            () => this.dataManager.GetFile<TexFile>(texPath)
+                                                ?? throw new FileNotFoundException()))));
 
+                                    newTextureWraps[i] = errorDispose.Add(wrap);
                                     newTextureIndices[i] = this.TextureWraps.Count + addCounter++;
                                 }
 
@@ -685,5 +696,19 @@ public sealed unsafe class DynamicFontAtlas : IDisposable {
             this.lastGamma = gamma;
             this.Clear(false);
         }
+    }
+    
+    private class CachedDalamudTextureWrap : IDalamudTextureWrap {
+        private readonly IDynamicFontAtlasCache.ICacheItemReference<IDalamudTextureWrap> reference;
+
+        public CachedDalamudTextureWrap(IDynamicFontAtlasCache.ICacheItemReference<IDalamudTextureWrap> reference) {
+            this.reference = reference;
+        }
+
+        public IntPtr ImGuiHandle => this.reference.Item.ImGuiHandle; 
+        public int Width => this.reference.Item.Width;
+        public int Height => this.reference.Item.Height;
+
+        public void Dispose() => this.reference.Dispose();
     }
 }

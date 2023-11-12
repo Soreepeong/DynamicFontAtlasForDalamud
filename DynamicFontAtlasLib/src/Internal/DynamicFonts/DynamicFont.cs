@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text.Unicode;
@@ -47,6 +48,8 @@ internal abstract unsafe class DynamicFont : IDisposable {
     public ImVectorWrapper<ImFontKerningPair> KerningPairs { get; }
 
     public BitArray LoadAttemptedGlyphs { get; }
+
+    internal 
 
     protected ImFont* FontNative { get; }
 
@@ -180,8 +183,10 @@ internal abstract unsafe class DynamicFont : IDisposable {
 
         var fallbackHotData = this.IndexedHotData[this.Font.FallbackChar];
         foreach (var codepoint in Enumerable.Range(0, this.IndexedHotData.Length)) {
-            if (this.IndexLookup[codepoint] == ushort.MaxValue)
-                this.IndexedHotData[codepoint] = fallbackHotData;
+            if (this.IndexLookup[codepoint] == ushort.MaxValue) {
+                this.IndexedHotData[codepoint].AdvanceX = fallbackHotData.AdvanceX;
+                this.IndexedHotData[codepoint].OccupiedWidth = fallbackHotData.OccupiedWidth;
+            }
         }
     }
 
@@ -189,5 +194,40 @@ internal abstract unsafe class DynamicFont : IDisposable {
         // Mark 4K page as used
         var pageIndex = unchecked((ushort)(glyph.Codepoint / 4096));
         this.Font.Used4kPagesMap[pageIndex >> 3] |= unchecked((byte)(1 << (pageIndex & 7)));
+    }
+
+    protected void ReplaceKerningPairs(IEnumerable<ImFontKerningPair> sortedPairs) {
+        this.KerningPairs.Clear();
+        foreach (var pair in sortedPairs) {
+            if (pair is { Left: < FrequentKerningPairsMaxCodepoint, Right: < FrequentKerningPairsMaxCodepoint }) {
+                this.FrequentKerningPairs[(pair.Left * FrequentKerningPairsMaxCodepoint) + pair.Right] =
+                    pair.AdvanceXAdjustment;
+            }
+
+            if (this.KerningPairs.Any()
+                && this.KerningPairs[^1].Left == pair.Left
+                && this.KerningPairs[^1].Right == pair.Right) {
+                this.KerningPairs[^1].AdvanceXAdjustment = pair.AdvanceXAdjustment;
+                continue;
+            }
+
+            this.KerningPairs.Add(pair);
+            
+            this.EnsureIndex(pair.Right);
+            ref var rhd = ref this.IndexedHotData[pair.Right];
+            var count = rhd.Count;
+            if (count == 0)
+                rhd.Offset = this.KerningPairs.Length - 1;
+
+            Debug.Assert(count < 1 << 12, "Too many kerning entry");
+            rhd.Count = ++count;
+
+            // If linear search takes at least 32 iterations,
+            // swap to bisect which should do the job in 5 iterations.
+            if (count == 32)
+                rhd.UseBisect = true;
+        }
+        
+        this.UpdateReferencesToVectorItems();
     }
 }

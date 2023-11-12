@@ -10,7 +10,7 @@ internal struct ImFontGlyphHotDataReal {
 
     private const uint UseBisectMask /***/ = 0b_00000000_00000000_00000000_00000001u;
     private const uint OffsetMask /******/ = 0b_00000000_00001111_11111111_11111110u;
-    private const uint CountMask /*******/ = 0b_11111111_11110000_00000111_11111100u;
+    private const uint CountMask /*******/ = 0b_11111111_11110000_00000000_00000000u;
 
     private const int UseBisectShift = 0;
     private const int OffsetShift = 1;

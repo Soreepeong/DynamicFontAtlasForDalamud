@@ -1,585 +1,302 @@
-﻿// using System;
-// using System.Buffers.Binary;
-// using System.Collections.Generic;
-// using System.Diagnostics.Contracts;
-//
-// namespace DynamicFontAtlasLib.TrueType.Tables; 
-//
-// public struct Gpos {
-// 		// https://docs.microsoft.com/en-us/typography/opentype/spec/gpos
-//
-//     public static readonly TagStruct DirectoryTableTag = new('G', 'P', 'O', 'S');
-//
-//     public PointerSpan<byte> Memory;
-//     public Fixed Version;
-//     public ushort ScriptListOffset;
-//     public ushort FeatureListOffset;
-//     public ushort LookupOffsetListOffset;
-//
-//     public uint FeatureVariationsOffset;
-//
-//     public Gpos(PointerSpan<byte> memory) {
-//         var span = memory.Span;
-//         this.Version = new(span);
-//         this.ScriptListOffset = BinaryPrimitives.ReadUInt16BigEndian(span[4..]);
-//         this.FeatureListOffset = BinaryPrimitives.ReadUInt16BigEndian(span[6..]);
-//         this.LookupOffsetListOffset = BinaryPrimitives.ReadUInt16BigEndian(span[8..]);
-//         this.FeatureVariationsOffset = BinaryPrimitives.ReadUInt16BigEndian(span[10..]);
-//     }
-//
-//
-//     public enum ValueFormatFlags : ushort{
-// 	    PlacementX = 1 << 0,
-// 	    PlacementY = 1 << 1,
-// 	    AdvanceX = 1 << 2,
-// 	    AdvanceY = 1 << 3,
-// 	    PlaDeviceOffsetX = 1 << 4,
-// 	    PlaDeviceOffsetY = 1 << 5,
-// 	    AdvDeviceOffsetX = 1 << 6,
-// 	    AdvDeviceOffsetY = 1 << 7,
-//     }
-// 		
-// 		
-// public struct PairAdjustmentPositioningSubtableFormat1 {
-//     public PointerSpan<byte> Memory;
-//     
-//     public ushort FormatId;
-//     public ushort CoverageOffset;
-//     public ValueFormatFlags ValueFormat1;
-//     public ValueFormatFlags ValueFormat2;
-//     public ushort PairSetCount;
-//     
-//     public PairAdjustmentPositioningSubtableFormat1(PointerSpan<byte> memory) {
-//         var span = memory.Span;
-//         this.FormatId = BinaryPrimitives.ReadUInt16BigEndian(span[4..]);
-//         this.CoverageOffset = BinaryPrimitives.ReadUInt16BigEndian(span[4..]);
-//         this.ValueFormat1 = (ValueFormatFlags) BinaryPrimitives.ReadUInt16BigEndian(span[6..]);
-//         this.ValueFormat2 = (ValueFormatFlags)BinaryPrimitives.ReadUInt16BigEndian(span[8..]);
-//         this.PairSetCount =  BinaryPrimitives.ReadUInt16BigEndian(span[10..]);
-//     }
-//
-//
-//     public struct PairSet {
-//         public ushort Count;
-//         public ushort Records[1];
-//
-//         public class View {
-// 						union {
-// 							const PairSet* m_obj;
-// 							const char* m_bytes;
-// 						}
-//                         public size_t m_length;
-//                         public ValueFormatFlags m_format1;
-//                         public ValueFormatFlags m_format2;
-//                         public uint m_bit;
-//                         public size_t m_valueCountPerPairValueRecord;
-//
-// 					public:
-//                     public View() : m_obj(nullptr),
-//                     public m_length(0), m_format1{ 0 }, m_format2{ 0 },
-//                     public m_bit(0),
-//                     public m_valueCountPerPairValueRecord(0) {}
-//                     public View(std.nullptr_t) : View() {}
-//                     public View(decltype
-//                     public (m_obj) pObject, size_t length,
-//                     public ValueFormatFlags format1, ValueFormatFlags format2,
-//                     public uint bit, size_t valueCountPerPairValueRecord)
-// 							:
-//                     public m_obj(pObject),
-//                     public m_length(length),
-//                     public m_format1(format1),
-//                     public m_format2(format2),
-//                     public m_bit(bit),
-//                     public m_valueCountPerPairValueRecord(valueCountPerPairValueRecord) {}
-//                     public View(View&&) = default;
-//                     public View(const View&) = default;
-// 						View& operator=(View&&) = default;
-// 						View& operator=(const View&) = default;
-// 						View& operator=(std.nullptr_t) { m_obj = nullptr; m_length = 0; return *this; }
-//                         public View(
-//                         public const void* pData, size_t length,
-//                         public ValueFormatFlags format1, ValueFormatFlags format2) :
-//                         public View(std.span(reinterpret_cast<const char*>(pData), length), format1, format2) {}
-//                         public template<typename T>
-//                         public View(std.span<T> data, ValueFormatFlags format1, ValueFormatFlags format2) : View() {
-// 							if (data.size_bytes() < 2)
-// 								return;
-//
-// 							var obj = reinterpret_cast<decltype(m_obj)>(&data[0]);
-//
-// 							var bit = (format2.Value << 16) | format1.Value;
-// 							var valueCountPerPairValueRecord = static_cast<size_t>(1) + std.popcount<uint>(bit);
-//
-// 							if (data.size_bytes() < static_cast<size_t>(2) + 2 * valueCountPerPairValueRecord * (*obj->Count))
-// 								return;
-//
-// 							m_obj = obj;
-// 							m_length = data.size_bytes();
-// 							m_format1 = format1;
-// 							m_format2 = format2;
-// 							m_bit = bit;
-// 							m_valueCountPerPairValueRecord = valueCountPerPairValueRecord;
-// 						}
-//
-// 						operator bool() {
-// 							return !!m_obj;
-// 						}
-//
-//                         public decltype(m_obj) operator*() {
-// 							return m_obj;
-// 						}
-//
-//                         public decltype(m_obj) operator->() {
-// 							return m_obj;
-// 						}
-//
-// 						[Pure]
-//                         public const ushort* GetPairValueRecord(size_t index) {
-// 							return &Records[m_valueCountPerPairValueRecord * index];
-// 						}
-//
-// 						[Pure]
-//                         public ushort GetSecondGlyph(size_t index) {
-// 							return **GetPairValueRecord(index);
-// 						}
-//
-// 						[Pure]
-//                         public ushort GetValueRecord1(size_t index, ValueFormatFlags desiredRecord) {
-// 							if (!(m_format1.Value & desiredRecord.Value))
-// 								return 0;
-// 							var bit = m_bit;
-// 							var pRecord = GetPairValueRecord(index);
-// 							for (var i = static_cast<uint>(desiredRecord.Value); i && bit; i >>= 1, bit >>= 1) {
-// 								if (bit & 1)
-// 									pRecord++;
-// 							}
-// 							return *pRecord;
-// 						}
-//
-// 						[Pure]
-//                         public ushort GetValueRecord2(size_t index, ValueFormatFlags desiredRecord) {
-// 							if (!(m_format2.Value & desiredRecord.Value))
-// 								return 0;
-// 							var bit = m_bit;
-// 							var pRecord = GetPairValueRecord(index);
-// 							for (var i = static_cast<uint>(desiredRecord.Value) << 16; i && bit; i >>= 1, bit >>= 1) {
-// 								if (bit & 1)
-// 									pRecord++;
-// 							}
-// 							return *pRecord;
-// 						}
-// 					}
-// 				}
-//
-//     public FormatHeader Header;
-//     public ushort PairSetOffsets[1];
-//
-//     public class View {
-// 					union {
-// 						const Format1* m_obj;
-// 						const char* m_bytes;
-// 					}
-//                     public size_t m_length;
-//
-// 				public:
-//                 public View() : m_obj(nullptr),
-//                 public m_length(0) {}
-//                 public View(std.nullptr_t) : View() {}
-//                 public View(decltype
-//                 public (m_obj) pObject, size_t length)
-// 						:
-//                 public m_obj(pObject),
-//                 public m_length(length) {}
-//                 public View(View&&) = default;
-//                 public View(const View&) = default;
-// 					View& operator=(View&&) = default;
-// 					View& operator=(const View&) = default;
-// 					View& operator=(std.nullptr_t) { m_obj = nullptr; m_length = 0; return *this; }
-//                     public View(
-//                     public const void* pData, size_t length) :
-//                     public View(std.span(reinterpret_cast<const char*>(pData), length)) {}
-//                     public template<typename T>
-//                     public View(std.span<T> data) : View() {
-// 						if (data.size_bytes() < sizeof FormatHeader)
-// 							return;
-//
-// 						var obj = reinterpret_cast<decltype(m_obj)>(&data[0]);
-//
-// 						if (obj->Header.FormatId != 1)
-// 							return;
-//
-// 						if (data.size_bytes() < sizeof FormatHeader + static_cast<size_t>(2) * (*obj->Header.PairSetCount))
-// 							return;
-//
-// 						if (CoverageTable.View coverageTable(reinterpret_cast<const char*>(obj) + *obj->Header.CoverageOffset, data.size_bytes() - *obj->Header.CoverageOffset); !coverageTable)
-// 							return;
-//
-// 						for (size_t i = 0, i_ = *obj->Header.PairSetCount; i < i_; i++) {
-// 							var off = static_cast<size_t>(*obj->PairSetOffsets[i]);
-// 							if (data.size_bytes() < off + 2)
-// 								return;
-//
-// 							var pPairSet = reinterpret_cast<const PairSet*>(reinterpret_cast<const char*>(obj) + off);
-// 							if (data.size_bytes() < off + 2 + static_cast<size_t>(2) * (*pPairSet->Count))
-// 								return;
-// 						}
-//
-// 						m_obj = obj;
-// 						m_length = data.size_bytes();
-// 					}
-//
-// 					operator bool() {
-// 						return !!m_obj;
-// 					}
-//
-//                     public decltype(m_obj) operator*() {
-// 						return m_obj;
-// 					}
-//
-//                     public decltype(m_obj) operator->() {
-// 						return m_obj;
-// 					}
-//
-// 					[Pure] std.span<const ushort>
-//                     public PairSetOffsetSpan() {
-// 						return { PairSetOffsets, Header.PairSetCount }
-// 					}
-//
-// 					[Pure]
-//                     public PairSet.View PairSetView(size_t index) {
-// 						var offset = static_cast<size_t>(*PairSetOffsets[index]);
-// 						return { reinterpret_cast<const char*>(m_obj) + offset, m_length - offset, Header.ValueFormat1, Header.ValueFormat2 }
-// 					}
-//
-// 					[Pure]
-//                     public CoverageTable.View CoverageTableView() {
-// 						var offset = static_cast<size_t>(*Header.CoverageOffset);
-// 						return { reinterpret_cast<const char*>(m_obj) + offset, m_length - offset }
-// 					}
-// 				}
-// 			}
-//
-// public struct PairAdjustmentPositioningSubtableFormat2 {
-//     public struct FormatHeader {
-//         public ushort FormatId;
-//         public ushort CoverageOffset;
-//         public BE<ValueFormatFlags> ValueFormat1;
-//         public BE<ValueFormatFlags> ValueFormat2;
-//         public ushort ClassDef1Offset;
-//         public ushort ClassDef2Offset;
-//         public ushort Class1Count;
-//         public ushort Class2Count;
-// 				}
-//
-// 				// Note:
-// 				// ClassRecord1 { Class2Record[Class2Count]; }
-// 				// ClassRecord2 { ValueFormat1; ValueFormat2; }
-//
-//                 public FormatHeader Header;
-//                 public ushort Records[1];
-//
-//                 public class View {
-// 					union {
-// 						const Format2* m_obj;
-// 						const char* m_bytes;
-// 					}
-//                     public size_t m_length;
-//                     public uint m_bit;
-//                     public size_t m_valueCountPerPairValueRecord;
-//
-// 				public:
-//                 public View() : m_obj(nullptr),
-//                 public m_length(0),
-//                 public m_bit(0),
-//                 public m_valueCountPerPairValueRecord(0) {}
-//                 public View(std.nullptr_t) : View() {}
-//                 public View(decltype
-//                 public (m_obj) pObject, size_t length,
-//                 public uint bit, size_t valueCountPerPairValueRecord)
-// 						:
-//                 public m_obj(pObject),
-//                 public m_length(length),
-//                 public m_bit(bit),
-//                 public m_valueCountPerPairValueRecord(valueCountPerPairValueRecord) {}
-//                 public View(View&&) = default;
-//                 public View(const View&) = default;
-// 					View& operator=(View&&) = default;
-// 					View& operator=(const View&) = default;
-// 					View& operator=(std.nullptr_t) { m_obj = nullptr; m_length = 0; return *this; }
-//                     public View(
-//                     public const void* pData, size_t length) :
-//                     public View(std.span(reinterpret_cast<const char*>(pData), length)) {}
-//                     public template<typename T>
-//                     public View(std.span<T> data) : View() {
-// 						if (data.size_bytes() < 2)
-// 							return;
-//
-// 						var obj = reinterpret_cast<decltype(m_obj)>(&data[0]);
-//
-// 						var bit = ((*obj->Header.ValueFormat2).Value << 16) | (*obj->Header.ValueFormat1).Value;
-// 						var valueCountPerPairValueRecord = static_cast<size_t>(1 + std.popcount<uint>(bit));
-//
-// 						if (data.size_bytes() < sizeof FormatHeader + sizeof ushort *valueCountPerPairValueRecord * (*obj->Header.Class1Count) * (*obj->Header.Class2Count))
-// 							return;
-//
-// 						if (ClassDefTable.View v(reinterpret_cast<const char*>(obj) + *obj->Header.ClassDef1Offset, data.size_bytes() - *obj->Header.ClassDef1Offset); !v)
-// 							return;
-// 						if (ClassDefTable.View v(reinterpret_cast<const char*>(obj) + *obj->Header.ClassDef2Offset, data.size_bytes() - *obj->Header.ClassDef2Offset); !v)
-// 							return;
-//
-// 						m_obj = obj;
-// 						m_length = data.size_bytes();
-// 						m_bit = bit;
-// 						m_valueCountPerPairValueRecord = valueCountPerPairValueRecord;
-// 					}
-//
-// 					operator bool() {
-// 						return !!m_obj;
-// 					}
-//
-//                     public decltype(m_obj) operator*() {
-// 						return m_obj;
-// 					}
-//
-//                     public decltype(m_obj) operator->() {
-// 						return m_obj;
-// 					}
-//
-// 					[Pure]
-//                     public const ushort* GetPairValueRecord(size_t class1, size_t class2) {
-// 						return &Records[m_valueCountPerPairValueRecord * (class1 * *Header.Class2Count + class2)];
-// 					}
-//
-// 					[Pure]
-//                     public ushort GetValueRecord1(size_t class1, size_t class2, ValueFormatFlags desiredRecord) {
-// 						if (!((*Header.ValueFormat1).Value & desiredRecord.Value))
-// 							return 0;
-// 						var bit = m_bit;
-// 						var pRecord = GetPairValueRecord(class1, class2);
-// 						for (var i = static_cast<uint>(desiredRecord.Value); i && bit; i >>= 1, bit >>= 1) {
-// 							if (bit & 1)
-// 								pRecord++;
-// 						}
-// 						return **pRecord;
-// 					}
-//
-// 					[Pure]
-//                     public ushort GetValueRecord2(size_t class1, size_t class2, ValueFormatFlags desiredRecord) {
-// 						if (!((*Header.ValueFormat2).Value & desiredRecord.Value))
-// 							return 0;
-// 						var bit = m_bit;
-// 						var pRecord = GetPairValueRecord(class1, class2);
-// 						for (var i = static_cast<uint>(desiredRecord.Value) << 16; i && bit; i >>= 1, bit >>= 1) {
-// 							if (bit & 1)
-// 								pRecord++;
-// 						}
-// 						return **pRecord;
-// 					}
-//
-// 					[Pure]
-//                     public ClassDefTable.View GetClassTableDefinition1() {
-// 						return { m_bytes + *Header.ClassDef1Offset, m_length - *Header.ClassDef1Offset }
-// 					}
-//
-// 					[Pure]
-//                     public ClassDefTable.View GetClassTableDefinition2() {
-// 						return { m_bytes + *Header.ClassDef2Offset, m_length - *Header.ClassDef2Offset }
-// 					}
-// 				}
-// 			}
-// 		}
-//
-// public struct ExtensionPositioningSubtableFormat1 {
-//     public ushort PosFormat;
-//     public BE<LookupType> ExtensionLookupType;
-//     public UInt32BE ExtensionOffset;
-// 			}
-// 		}
-//
-// 		union {
-// 			Fixed Version;
-// 			Gpos.GposHeaderV1_0 HeaderV1_1;
-// 			Gpos.GposHeaderV1_1 HeaderV1_0;
-// 		}
-//
-// public class View {
-// 			union {
-// 				const Gpos* m_obj;
-// 				const char* m_bytes;
-// 			}
-//             public size_t m_length;
-//
-// 		public:
-//         public View() : m_obj(nullptr),
-//         public m_length(0) {}
-//         public View(std.nullptr_t) : View() {}
-//         public View(decltype
-//         public (m_obj) pObject, size_t length)
-// 				:
-//         public m_obj(pObject),
-//         public m_length(length) {}
-//         public View(View&&) = default;
-//         public View(const View&) = default;
-// 			View& operator=(View&&) = default;
-// 			View& operator=(const View&) = default;
-// 			View& operator=(std.nullptr_t) { m_obj = nullptr; m_length = 0; return *this; }
-//             public View(
-//             public const void* pData, size_t length) :
-//             public View(std.span(reinterpret_cast<const char*>(pData), length)) {}
-//             public template<typename T>
-//             public View(std.span<T> data) : View() {
-// 				if (data.size_bytes() < sizeof Gpos.GposHeaderV1_0)
-// 					return;
-//
-// 				var obj = reinterpret_cast<decltype(m_obj)>(&data[0]);
-//
-// 				if (obj->Version.Major < 1)
-// 					return;
-//
-// 				if (obj->Version.Major > 1 || (obj->Version.Major == 1 && obj->Version.Minor >= 1)) {
-// 					if (data.size_bytes() < sizeof Gpos.GposHeaderV1_1)
-// 						return;
-// 				}
-//
-// 				m_obj = obj;
-// 				m_length = data.size_bytes();
-// 			}
-//
-// 			operator bool() {
-// 				return !!m_obj;
-// 			}
-//
-//             public decltype(m_obj) operator*() {
-// 				return m_obj;
-// 			}
-//
-//             public decltype(m_obj) operator->() {
-// 				return m_obj;
-// 			}
-//
-// 			[Pure] std.span<const ushort>
-//             public LookupOffsetListOffsets() {
-// 				var p = reinterpret_cast<const ushort*>(m_bytes + *HeaderV1_0.LookupOffsetListOffset);
-// 				return { p + 1, **p }
-// 			}
-//
-// 			[Pure]
-//             public Dictionary<std.pair<char32_t, char32_t>, int> ExtractAdvanceX(const std.vector<SortedSet<char32_t>>& glyphToCharMap) {
-// 				Dictionary<std.pair<char32_t, char32_t>, int> result;
-//
-// 				var LookupOffsetListOffset = *HeaderV1_0.LookupOffsetListOffset;
-// 				LookupOffsetList.View LookupOffsetList(m_bytes + LookupOffsetListOffset, m_length - LookupOffsetListOffset);
-// 				if (!LookupOffsetList)
-// 					return {}
-//
-// 				for (var& lookupTableOffset : LookupOffsetList.Offsets()) {
-// 					var offset = LookupOffsetListOffset + *lookupTableOffset;
-// 					
-// 					LookupTable.View lookupTable(m_bytes + offset, m_length - offset);
-// 					if (!lookupTable)
-// 						continue;
-//
-// 					for (size_t subtableIndex = 0, i_ = *lookupTable->Header.SubtableCount; subtableIndex < i_; subtableIndex++) {
-// 						var subtableSpan = lookupTable.SubtableSpan(subtableIndex);
-//
-// 						switch (*lookupTable->Header.LookupType) {
-// 						case LookupType.PairAdjustment:
-// 							break;
-//
-// 						case LookupType.ExtensionPositioning: {
-// 							if (subtableSpan.size() < sizeof(ExtensionPositioningSubtable.Format1))
-// 								continue;
-// 							var& table = *reinterpret_cast<const ExtensionPositioningSubtable.Format1*>(subtableSpan.data());
-// 							if (*table.PosFormat != 1)
-// 								continue;
-// 							if (*table.ExtensionLookupType != LookupType.PairAdjustment)
-// 								continue;
-// 							subtableSpan = subtableSpan.subspan(table.ExtensionOffset);
-// 							break;
-// 						}
-//
-// 						default:
-// 							continue;
-// 						}
-//
-// 						if (PairAdjustmentPositioningSubtable.Format1.View v(subtableSpan); v) {
-// 							if (!(*v->Header.ValueFormat1).AdvanceX && !(*v->Header.ValueFormat2).PlacementX)
-// 								continue;
-//
-// 							var coverageTable = v.CoverageTableView();
-// 							if (coverageTable->Header.FormatId == 1) {
-// 								var glyphSpan = coverageTable.GlyphSpan();
-// 								for (size_t coverageIndex = 0; coverageIndex < glyphSpan.size(); coverageIndex++) {
-// 									var glyph1Id = *glyphSpan[coverageIndex];
-// 									for (var c1 : glyphToCharMap[glyph1Id]) {
-// 										var pairSetView = v.PairSetView(coverageIndex);
-// 										for (size_t pairIndex = 0, j_ = *pairSetView->Count; pairIndex < j_; pairIndex++) {
-// 											for (var c2 : glyphToCharMap[pairSetView.GetSecondGlyph(pairIndex)]) {
-// 												var val = static_cast<int16_t>(pairSetView.GetValueRecord1(pairIndex, { .AdvanceX = 1 }))
-// 													+ static_cast<int16_t>(pairSetView.GetValueRecord2(pairIndex, { .PlacementX = 1 }));
-// 												if (val)
-// 													result[std.make_pair(c1, c2)] = val;
-// 											}
-// 										}
-// 									}
-// 								}
-//
-// 							} else if (coverageTable->Header.FormatId == 2) {
-// 								for (var& rangeRecord : coverageTable.RangeRecordSpan()) {
-// 									var startGlyphId = static_cast<size_t>(*rangeRecord.StartGlyphId);
-// 									var endGlyphId = static_cast<size_t>(*rangeRecord.EndGlyphId);
-// 									var startCoverageIndex = static_cast<size_t>(*rangeRecord.StartCoverageIndex);
-// 									for (size_t glyphIndex = 0, i_ = endGlyphId - startGlyphId + 1; glyphIndex < i_; glyphIndex++) {
-// 										var glyph1Id = startGlyphId + glyphIndex;
-// 										for (var c1 : glyphToCharMap[glyph1Id]) {
-// 											var pairSetView = v.PairSetView(startCoverageIndex + glyphIndex);
-// 											for (size_t pairIndex = 0, j_ = *pairSetView->Count; pairIndex < j_; pairIndex++) {
-// 												for (var c2 : glyphToCharMap[pairSetView.GetSecondGlyph(pairIndex)]) {
-// 													var val = static_cast<int16_t>(pairSetView.GetValueRecord1(pairIndex, { .AdvanceX = 1 }))
-// 														+ static_cast<int16_t>(pairSetView.GetValueRecord2(pairIndex, { .PlacementX = 1 }));
-// 													if (val)
-// 														result[std.make_pair(c1, c2)] = val;
-// 												}
-// 											}
-// 										}
-// 									}
-// 								}
-// 							}
-//
-// 						} else if (PairAdjustmentPositioningSubtable.Format2.View v(subtableSpan); v) {
-// 							if (!(*v->Header.ValueFormat1).AdvanceX && !(*v->Header.ValueFormat2).PlacementX)
-// 								continue;
-//
-// 							for (var& [class1, glyphs1] : v.GetClassTableDefinition1().ClassToGlyphMap()) {
-// 								if (class1 >= v->Header.Class1Count)
-// 									continue;
-//
-// 								for (var& [class2, glyphs2] : v.GetClassTableDefinition2().ClassToGlyphMap()) {
-// 									if (class2 >= v->Header.Class1Count)
-// 										continue;
-//
-// 									var val = 0
-// 										+ static_cast<int16_t>(v.GetValueRecord1(class1, class2, { .AdvanceX = 1 }))
-// 										+ static_cast<int16_t>(v.GetValueRecord2(class1, class2, { .PlacementX = 1 }));
-// 									if (!val)
-// 										continue;
-//
-// 									for (var glyph1 : glyphs1) {
-// 										for (var c1 : glyphToCharMap[glyph1]) {
-// 											for (var glyph2 : glyphs2) {
-// 												for (var c2 : glyphToCharMap[glyph2]) {
-// 													result[std.make_pair(c1, c2)] = val;
-// 												}
-// 											}
-// 										}
-// 									}
-// 								}
-// 							}
-// 						}
-// 					}
-// 				}
-//
-// 				return result;
-// 			}
-// 		}
-// 	}
+﻿using System.Buffers.Binary;
+using System.Collections.Immutable;
+using DynamicFontAtlasLib.TrueType.CommonStructs;
+using DynamicFontAtlasLib.TrueType.Files;
+using DynamicFontAtlasLib.TrueType.GposGsub;
+
+namespace DynamicFontAtlasLib.TrueType.Tables;
+
+public readonly struct Gpos {
+    // https://docs.microsoft.com/en-us/typography/opentype/spec/gpos
+
+    public static readonly TagStruct DirectoryTableTag = new('G', 'P', 'O', 'S');
+
+    public readonly PointerSpan<byte> Memory;
+
+    public Gpos(SfntFile file) : this(file[DirectoryTableTag]) { }
+
+    public Gpos(PointerSpan<byte> memory) => this.Memory = memory;
+
+    public Fixed Version => new(Memory);
+    public ushort ScriptListOffset => this.Memory.ReadU16Big(4);
+    public ushort FeatureListOffset => this.Memory.ReadU16Big(6);
+    public ushort LookupListOffset => this.Memory.ReadU16Big(8);
+
+    public uint FeatureVariationsOffset => this.Version.CompareTo(new(1, 1)) >= 0
+        ? this.Memory.ReadU32Big(10)
+        : 0;
+
+    public BigEndianPointerSpan<ushort> LookupOffsetList => new(
+        this.Memory[(this.LookupListOffset + 2)..].As<ushort>(
+            this.Memory.ReadU16Big(this.LookupListOffset)),
+        BinaryPrimitives.ReverseEndianness);
+
+    public IEnumerable<LookupTable> EnumerateLookupTables() {
+        foreach (var offset in this.LookupOffsetList)
+            yield return new(this.Memory[(this.LookupListOffset + offset)..]);
+    }
+
+    [Flags]
+    public enum ValueFormatFlags : ushort {
+        PlacementX = 1 << 0,
+        PlacementY = 1 << 1,
+        AdvanceX = 1 << 2,
+        AdvanceY = 1 << 3,
+        PlacementDeviceOffsetX = 1 << 4,
+        PlacementDeviceOffsetY = 1 << 5,
+        AdvanceDeviceOffsetX = 1 << 6,
+        AdvanceDeviceOffsetY = 1 << 7,
+    }
+
+    public struct ValueRecord {
+        public short PlacementX;
+        public short PlacementY;
+        public short AdvanceX;
+        public short AdvanceY;
+        public short PlacementDeviceOffsetX;
+        public short PlacementDeviceOffsetY;
+        public short AdvanceDeviceOffsetX;
+        public short AdvanceDeviceOffsetY;
+
+        public ValueRecord(PointerSpan<byte> pointerSpan, ValueFormatFlags valueFormatFlags) {
+            var offset = 0;
+            if ((valueFormatFlags & ValueFormatFlags.PlacementX) != 0)
+                pointerSpan.ReadBig(ref offset, out this.PlacementX);
+
+            if ((valueFormatFlags & ValueFormatFlags.PlacementY) != 0)
+                pointerSpan.ReadBig(ref offset, out this.PlacementY);
+
+            if ((valueFormatFlags & ValueFormatFlags.AdvanceX) != 0) pointerSpan.ReadBig(ref offset, out this.AdvanceX);
+            if ((valueFormatFlags & ValueFormatFlags.AdvanceY) != 0) pointerSpan.ReadBig(ref offset, out this.AdvanceY);
+            if ((valueFormatFlags & ValueFormatFlags.PlacementDeviceOffsetX) != 0)
+                pointerSpan.ReadBig(ref offset, out this.PlacementDeviceOffsetX);
+
+            if ((valueFormatFlags & ValueFormatFlags.PlacementDeviceOffsetY) != 0)
+                pointerSpan.ReadBig(ref offset, out this.PlacementDeviceOffsetY);
+
+            if ((valueFormatFlags & ValueFormatFlags.AdvanceDeviceOffsetX) != 0)
+                pointerSpan.ReadBig(ref offset, out this.AdvanceDeviceOffsetX);
+
+            if ((valueFormatFlags & ValueFormatFlags.AdvanceDeviceOffsetY) != 0)
+                pointerSpan.ReadBig(ref offset, out this.AdvanceDeviceOffsetY);
+        }
+    }
+
+    public struct PairAdjustmentPositioning {
+        public PointerSpan<byte> Memory;
+
+        public PairAdjustmentPositioning(PointerSpan<byte> memory) => this.Memory = memory;
+
+        public ushort Format => this.Memory.ReadU16Big(0);
+
+        public IEnumerable<KerningPair> ExtractAdvanceX() => this.Format switch {
+            1 => new Format1(this.Memory).ExtractAdvanceX(),
+            2 => new Format2(this.Memory).ExtractAdvanceX(),
+            _ => Array.Empty<KerningPair>()
+        };
+
+        public struct Format1 {
+            public PointerSpan<byte> Memory;
+
+            public Format1(PointerSpan<byte> memory) => this.Memory = memory;
+
+            public ushort Format => this.Memory.ReadU16Big(0);
+            public ushort CoverageOffset => this.Memory.ReadU16Big(2);
+            public ValueFormatFlags ValueFormat1 => this.Memory.ReadEnumBig<ValueFormatFlags>(4);
+            public ValueFormatFlags ValueFormat2 => this.Memory.ReadEnumBig<ValueFormatFlags>(6);
+            public ushort PairSetCount => this.Memory.ReadU16Big(8);
+
+            public BigEndianPointerSpan<ushort> PairSetOffsets => new(
+                this.Memory[10..].As<ushort>(this.PairSetCount),
+                BinaryPrimitives.ReverseEndianness);
+
+            public PairSet this[int index] => new(
+                this.Memory[this.PairSetOffsets[index]..],
+                this.ValueFormat1,
+                this.ValueFormat2);
+
+            public CoverageTable CoverageTable => new(this.Memory[this.CoverageOffset..]);
+
+            public IEnumerable<KerningPair> ExtractAdvanceX() {
+                if ((this.ValueFormat1 & ValueFormatFlags.AdvanceX) == 0 &&
+                    (this.ValueFormat2 & ValueFormatFlags.AdvanceX) == 0) {
+                    yield break;
+                }
+
+                var coverageTable = this.CoverageTable;
+                switch (coverageTable.Format) {
+                    case CoverageTable.CoverageFormat.Glyphs: {
+                        var glyphSpan = coverageTable.Glyphs;
+                        foreach (var coverageIndex in Enumerable.Range(0, glyphSpan.Count)) {
+                            var glyph1Id = glyphSpan[coverageIndex];
+                            var pairSetView = this[coverageIndex];
+                            foreach (var pairIndex in Enumerable.Range(0, pairSetView.Count)) {
+                                var pair = pairSetView[pairIndex];
+                                var adj = (short)(pair.Record1.AdvanceX + pair.Record2.PlacementX);
+                                if (adj != 0)
+                                    yield return new(glyph1Id, pair.SecondGlyph, adj);
+                            }
+                        }
+
+                        break;
+                    }
+                    case CoverageTable.CoverageFormat.RangeRecords: {
+                        foreach (var rangeRecord in coverageTable.RangeRecords) {
+                            var startGlyphId = rangeRecord.StartGlyphId;
+                            var endGlyphId = rangeRecord.EndGlyphId;
+                            var startCoverageIndex = rangeRecord.StartCoverageIndex;
+                            var glyphCount = endGlyphId - startGlyphId + 1;
+                            foreach (var glyph1Id in Enumerable.Range(startGlyphId, glyphCount)) {
+                                var pairSetView = this[startCoverageIndex + glyph1Id - startGlyphId];
+                                foreach (var pairIndex in Enumerable.Range(0, pairSetView.Count)) {
+                                    var pair = pairSetView[pairIndex];
+                                    var adj = (short)(pair.Record1.AdvanceX + pair.Record2.PlacementX);
+                                    if (adj != 0)
+                                        yield return new((ushort)glyph1Id, pair.SecondGlyph, adj);
+                                }
+                            }
+                        }
+
+                        break;
+                    }
+                }
+            }
+
+            public struct PairSet {
+                public PointerSpan<byte> Memory;
+                public ValueFormatFlags ValueFormatFlags1;
+                public ValueFormatFlags ValueFormatFlags2;
+
+                public PairSet(
+                    PointerSpan<byte> memory,
+                    ValueFormatFlags valueFormatFlags1,
+                    ValueFormatFlags valueFormatFlags2) {
+                    this.Memory = memory;
+                    this.ValueFormatFlags1 = valueFormatFlags1;
+                    this.ValueFormatFlags2 = valueFormatFlags2;
+                }
+
+                public ushort Count => this.Memory.ReadU16Big(0);
+
+                public int RecordElementSize =>
+                    (1 + ushort.PopCount((ushort)ValueFormatFlags1) + ushort.PopCount((ushort)ValueFormatFlags2)) * 2;
+
+                public PairValueRecord this[int index] {
+                    get {
+                        var pvr = this.Memory[(2 + (this.RecordElementSize * index))..];
+                        return new() {
+                            SecondGlyph = pvr.ReadU16Big(0),
+                            Record1 = new(pvr[2..], this.ValueFormatFlags1),
+                            Record2 = new(pvr[(2 + this.RecordElementSize)..], this.ValueFormatFlags2)
+                        };
+                    }
+                }
+
+                public struct PairValueRecord {
+                    public ushort SecondGlyph;
+                    public ValueRecord Record1;
+                    public ValueRecord Record2;
+                }
+            }
+        }
+
+        public struct Format2 {
+            public PointerSpan<byte> Memory;
+
+            public Format2(PointerSpan<byte> memory) => this.Memory = memory;
+
+            public ushort Format => this.Memory.ReadU16Big(0);
+            public ushort CoverageOffset => this.Memory.ReadU16Big(2);
+            public ValueFormatFlags ValueFormat1 => this.Memory.ReadEnumBig<ValueFormatFlags>(4);
+            public ValueFormatFlags ValueFormat2 => this.Memory.ReadEnumBig<ValueFormatFlags>(6);
+            public ushort ClassDef1Offset => this.Memory.ReadU16Big(8);
+            public ushort ClassDef2Offset => this.Memory.ReadU16Big(10);
+            public ushort Class1Count => this.Memory.ReadU16Big(12);
+            public ushort Class2Count => this.Memory.ReadU16Big(14);
+
+            public int Value1Size => 2 * ushort.PopCount((ushort)this.ValueFormat1);
+            public int Value2Size => 2 * ushort.PopCount((ushort)this.ValueFormat2);
+            public int ValueSize => this.Value1Size + this.Value2Size;
+
+            public ClassDefTable ClassDefTable1 => new(this.Memory[this.ClassDef1Offset..]);
+            public ClassDefTable ClassDefTable2 => new(this.Memory[this.ClassDef2Offset..]);
+
+            public (ValueRecord, ValueRecord) this[(int, int) v] => this[v.Item1, v.Item2];
+
+            public (ValueRecord, ValueRecord) this[int class1Index, int class2Index] {
+                get {
+                    if (class1Index < 0 || class1Index >= this.Class1Count)
+                        throw new IndexOutOfRangeException();
+
+                    if (class2Index < 0 || class2Index >= this.Class2Count)
+                        throw new IndexOutOfRangeException();
+
+                    var offset = 16 + (2 * this.ValueSize * ((class1Index * this.Class2Count) + class2Index));
+                    return (
+                        new(this.Memory[offset..], this.ValueFormat1),
+                        new(this.Memory[(offset + this.Value1Size)..], this.ValueFormat2));
+                }
+            }
+
+            public IEnumerable<KerningPair> ExtractAdvanceX() {
+                if ((this.ValueFormat1 & ValueFormatFlags.AdvanceX) == 0 &&
+                    (this.ValueFormat2 & ValueFormatFlags.AdvanceX) == 0) {
+                    yield break;
+                }
+
+                var class1Count = this.Class1Count;
+                var class2Count = this.Class2Count;
+                var classes1 = this.ClassDefTable1.Enumerate()
+                    .Where(x => x.Class < class1Count)
+                    .GroupBy(x => x.Class, x => x.GlyphId)
+                    .ToImmutableDictionary(x => x.Key, x => x.ToImmutableSortedSet());
+
+                var classes2 = this.ClassDefTable2.Enumerate()
+                    .Where(x => x.Class < class2Count)
+                    .GroupBy(x => x.Class, x => x.GlyphId)
+                    .ToImmutableDictionary(x => x.Key, x => x.ToImmutableSortedSet());
+
+                foreach (var (class1, glyphs1) in classes1) {
+                    foreach (var (class2, glyphs2) in classes2) {
+                        var record = this[class1, class2];
+                        var val = record.Item1.AdvanceX + record.Item2.PlacementX;
+                        if (val == 0)
+                            continue;
+
+                        foreach (var glyph1 in glyphs1) {
+                            foreach (var glyph2 in glyphs2) {
+                                yield return new(glyph1, glyph2, (short)val);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    public struct ExtensionPositioningSubtableFormat1 {
+        public PointerSpan<byte> Memory;
+
+        public ExtensionPositioningSubtableFormat1(PointerSpan<byte> memory) => this.Memory = memory;
+
+        public ushort Format => this.Memory.ReadU16Big(0);
+        public LookupType ExtensionLookupType => this.Memory.ReadEnumBig<LookupType>(2);
+        public int ExtensionOffset => this.Memory.ReadI32Big(4);
+
+        public PointerSpan<byte> ExtensionData => this.Memory[this.ExtensionOffset..];
+    }
+
+    public IEnumerable<KerningPair> ExtractAdvanceX() => this.EnumerateLookupTables()
+        .SelectMany(lookupTable => lookupTable.Type switch {
+            LookupType.PairAdjustment =>
+                lookupTable
+                    .SelectMany(y => new PairAdjustmentPositioning(y).ExtractAdvanceX()),
+            LookupType.ExtensionPositioning =>
+                lookupTable
+                    .Where(y => y.ReadU16Big(0) == 1)
+                    .Select(y => new ExtensionPositioningSubtableFormat1(y))
+                    .Where(y => y.ExtensionLookupType == LookupType.PairAdjustment)
+                    .SelectMany(y => new PairAdjustmentPositioning(y.ExtensionData).ExtractAdvanceX()),
+            _ => Array.Empty<KerningPair>(),
+        });
+}

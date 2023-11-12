@@ -1,5 +1,4 @@
-﻿using System.Buffers.Binary;
-using DynamicFontAtlasLib.TrueType.CommonStructs;
+﻿using DynamicFontAtlasLib.TrueType.CommonStructs;
 using DynamicFontAtlasLib.TrueType.Files;
 
 namespace DynamicFontAtlasLib.TrueType.Tables;
@@ -23,25 +22,6 @@ public struct Kern {
         1 => new Version1(this.Memory).EnumerateHorizontalPairs(),
         _ => Array.Empty<KerningPair>(),
     };
-
-    public struct KerningPair {
-        public ushort Left;
-        public ushort Right;
-        public short Value;
-
-        public KerningPair(PointerSpan<byte> span) {
-            var offset = 0;
-            span.ReadBig(ref offset, out this.Left);
-            span.ReadBig(ref offset, out this.Right);
-            span.ReadBig(ref offset, out this.Value);
-        }
-
-        public static KerningPair ReverseEndianness(KerningPair pair) => new() {
-            Left = BinaryPrimitives.ReverseEndianness(pair.Left),
-            Right = BinaryPrimitives.ReverseEndianness(pair.Right),
-            Value = BinaryPrimitives.ReverseEndianness(pair.Value),
-        };
-    }
 
     public struct Format0 {
         public PointerSpan<byte> Memory;

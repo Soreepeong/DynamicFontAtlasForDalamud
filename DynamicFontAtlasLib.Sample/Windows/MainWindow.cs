@@ -64,6 +64,7 @@ public class MainWindow : Window, IDisposable {
     private string buffer = "ABCDE abcde 12345 가나다 漢字氣気 あかさたな アカサタナ";
 
     private DynamicFontAtlas? atlas;
+    private DynamicFontAtlasCache cache = new();
     private float fontSize = 14f * 4 / 3;
 
     public MainWindow(Plugin plugin) : base("DynamicFontAtlas Sample") {
@@ -80,6 +81,7 @@ public class MainWindow : Window, IDisposable {
     public void Dispose() {
         this.atlas?.Dispose();
         this.atlas = null;
+        this.cache.Dispose();
     }
 
     public override void Draw() {
@@ -92,7 +94,8 @@ public class MainWindow : Window, IDisposable {
                 new(((dynamic)this.Plugin.PluginInterface.UiBuilder).Device.NativePointer),
                 this.Plugin.PluginInterface.DalamudAssetDirectory,
                 this.Plugin.DataManager,
-                this.Plugin.TextureProvider) {
+                this.Plugin.TextureProvider,
+                this.cache) {
                 FallbackFontIdent = FontIdent.FromSystem("Gulim"),
             };
 

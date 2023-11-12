@@ -1,6 +1,5 @@
-namespace DynamicFontAtlasLib.TrueType;
+namespace DynamicFontAtlasLib.TrueType.GposGsub;
 
-#pragma warning disable CS0649
 public enum LookupType : ushort {
     SingleAdjustment = 1,
     PairAdjustment = 2,
