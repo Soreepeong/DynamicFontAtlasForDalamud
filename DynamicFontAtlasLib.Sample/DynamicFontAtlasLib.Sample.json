@@ -1,0 +1,12 @@
+{
+  "Author": "kizer",
+  "Name": "DynamicFontAtlasLib.Sample",
+  "Punchline": "DynamicFontAtlasLib.Sample",
+  "Description": "DynamicFontAtlasLib.Sample",
+  "InternalName": "DynamicFontAtlasLib.Sample",
+  "ApplicableVersion": "any",
+  "Tags": [
+    "sample",
+    "plugin"
+  ]
+}
