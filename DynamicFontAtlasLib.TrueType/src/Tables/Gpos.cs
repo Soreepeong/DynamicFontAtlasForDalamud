@@ -129,7 +129,15 @@ public readonly struct Gpos {
                         var glyphSpan = coverageTable.Glyphs;
                         foreach (var coverageIndex in Enumerable.Range(0, glyphSpan.Count)) {
                             var glyph1Id = glyphSpan[coverageIndex];
-                            var pairSetView = this[coverageIndex];
+                            PairSet pairSetView;
+                            try {
+                                pairSetView = this[coverageIndex];
+                            } catch (ArgumentOutOfRangeException) {
+                                yield break;
+                            } catch (IndexOutOfRangeException) {
+                                yield break;
+                            }
+
                             foreach (var pairIndex in Enumerable.Range(0, pairSetView.Count)) {
                                 var pair = pairSetView[pairIndex];
                                 var adj = (short)(pair.Record1.AdvanceX + pair.Record2.PlacementX);
@@ -147,7 +155,15 @@ public readonly struct Gpos {
                             var startCoverageIndex = rangeRecord.StartCoverageIndex;
                             var glyphCount = endGlyphId - startGlyphId + 1;
                             foreach (var glyph1Id in Enumerable.Range(startGlyphId, glyphCount)) {
-                                var pairSetView = this[startCoverageIndex + glyph1Id - startGlyphId];
+                                PairSet pairSetView;
+                                try {
+                                    pairSetView = this[startCoverageIndex + glyph1Id - startGlyphId];
+                                } catch (ArgumentOutOfRangeException) {
+                                    yield break;
+                                } catch (IndexOutOfRangeException) {
+                                    yield break;
+                                }
+
                                 foreach (var pairIndex in Enumerable.Range(0, pairSetView.Count)) {
                                     var pair = pairSetView[pairIndex];
                                     var adj = (short)(pair.Record1.AdvanceX + pair.Record2.PlacementX);
@@ -258,7 +274,15 @@ public readonly struct Gpos {
 
                 foreach (var (class1, glyphs1) in classes1) {
                     foreach (var (class2, glyphs2) in classes2) {
-                        var record = this[class1, class2];
+                        (ValueRecord, ValueRecord) record;
+                        try {
+                            record = this[class1, class2];
+                        } catch (ArgumentOutOfRangeException) {
+                            yield break;
+                        } catch (IndexOutOfRangeException) {
+                            yield break;
+                        }
+
                         var val = record.Item1.AdvanceX + record.Item2.PlacementX;
                         if (val == 0)
                             continue;

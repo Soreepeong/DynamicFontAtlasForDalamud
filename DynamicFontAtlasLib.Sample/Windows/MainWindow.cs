@@ -103,6 +103,7 @@ public class MainWindow : Window, IDisposable {
             this.systemEntries.AddRange(
                 FontIdent.GetSystemFonts()
                     .SelectMany(x => x.Variants)
+                    .Where(x => x.System!.Value.Name.StartsWith("Yu Gothic UI"))
                     .OrderBy(x => x.System!.Value.Name));
         }
 
