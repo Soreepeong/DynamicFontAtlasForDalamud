@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Reactive.Disposables;
 using System.Text.Unicode;
 using System.Threading.Tasks;
 using DynamicFontAtlasLib.FontIdentificationStructs;
@@ -19,6 +20,16 @@ public interface IDynamicFontAtlas : IDisposable {
     ImFontAtlasPtr AtlasPtr { get; }
 
     /// <summary>
+    /// Gets or sets the default action to take when PushFontScoped encountered a font that has failed to load.
+    /// </summary>
+    PushFontMode DefaultPushFontErrorMode { get; set; }
+    
+    /// <summary>
+    /// Gets or sets the default action to take when PushFontScoped encountered a font that is being loaded.
+    /// </summary>
+    PushFontMode DefaultPushFontLoadingMode { get; set; }
+
+    /// <summary>
     /// Gets or sets the fallback font. Once set, until a call to <see cref="Clear"/>, the changes may not apply.
     /// </summary>
     FontChain FallbackFontChain { get; set; }
@@ -28,7 +39,7 @@ public interface IDynamicFontAtlas : IDisposable {
     /// The task can be created suspended.
     /// </summary>
     ConcurrentDictionary<string, Task<byte[]>> FontDataBytes { get; }
-    
+
     /// <summary>
     /// Gets or sets the getter function that fetches the overall scale of all fonts contained in this atlas.
     /// </summary>
@@ -115,35 +126,69 @@ public interface IDynamicFontAtlas : IDisposable {
     void LoadGlyphs(ImFontPtr font, IEnumerable<UnicodeRange> ranges);
 
     /// <summary>
-    /// Suppress uploading updated texture onto GPU for the scope.
+    /// Starts suppressing uploading updated texture onto GPU.  
+    /// </summary>
+    /// <remarks>If multiple calls to <see cref="SuppressTextureUpdatesEnter"/> have happened, equal number of calls to <see cref="SuppressTextureUpdatesExit"/> is required.</remarks>
+    void SuppressTextureUpdatesEnter();
+
+    /// <summary>
+    /// Stops suppressing uploading updated texture onto GPU.  
+    /// </summary>
+    /// <remarks>If multiple calls to <see cref="SuppressTextureUpdatesEnter"/> have happened, equal number of calls to <see cref="SuppressTextureUpdatesExit"/> is required.</remarks>
+    void SuppressTextureUpdatesExit();
+
+    /// <summary>
+    /// Suppresses uploading updated texture onto GPU for the scope.
     /// </summary>
     /// <returns>An <see cref="IDisposable"/> that will make it update the texture on dispose.</returns>
     /// <remarks>This function is <b>NOT thread safe</b>.</remarks>
-    IDisposable? SuppressTextureUpdatesScoped();
+    IDisposable SuppressTextureUpdatesScoped() {
+        this.SuppressTextureUpdatesEnter();
+        return Disposable.Create(this.SuppressTextureUpdatesExit);
+    }
 
     /// <summary>
     /// Fetch a font, and if it succeeds, push it onto the stack.
     /// </summary>
     /// <param name="ident">Font identifier.</param>
     /// <param name="sizePx">Font size in pixels.</param>
-    /// <param name="waitForLoad">Wait for the font to be loaded.</param>
-    /// <returns>An <see cref="IDisposable"/> that will make it pop the font on dispose if font is loaded; otherwise, null.</returns>
+    /// <param name="errorMode">Action to take when the font has failed to load.</param>
+    /// <param name="loadingMode">Action to take when the font is loading.</param>
+    /// <returns>An instance of <see cref="PushFontResult"/>.</returns>
     /// <remarks>This function is <b>NOT thread safe</b>.</remarks>
-    IDisposable? PushFontScoped(in FontIdent ident, float sizePx, bool waitForLoad = false) =>
-        this.PushFontScoped(new(new FontChainEntry(ident, sizePx)), waitForLoad);
+    PushFontResult PushFontScoped(
+        in FontIdent ident,
+        float sizePx,
+        PushFontMode errorMode = PushFontMode.Default,
+        PushFontMode loadingMode = PushFontMode.Default) =>
+        this.PushFontScoped(new(new FontChainEntry(ident, sizePx)), errorMode, loadingMode);
 
     /// <summary>
     /// Fetch a font, and if it succeeds, push it onto the stack.
     /// </summary>
     /// <param name="chain">Font chain.</param>
-    /// <param name="waitForLoad">Wait for the font to be loaded.</param>
-    /// <returns>An <see cref="IDisposable"/> that will make it pop the font on dispose if font is loaded; otherwise, null.</returns>
+    /// <param name="errorMode">Action to take when the font has failed to load.</param>
+    /// <param name="loadingMode">Action to take when the font is loading.</param>
+    /// <returns>An instance of <see cref="PushFontResult"/>.</returns>
     /// <remarks>This function is <b>NOT thread safe</b>.</remarks>
-    IDisposable? PushFontScoped(in FontChain chain, bool waitForLoad = false);
+    PushFontResult PushFontScoped(
+        in FontChain chain,
+        PushFontMode errorMode = PushFontMode.Default,
+        PushFontMode loadingMode = PushFontMode.Default);
 
     /// <summary>
     /// Upload updated textures onto GPU, if not suppressed.
     /// </summary>
     /// <remarks>This function is thread safe.</remarks>
     void UpdateTextures(bool forceUpdate);
+}
+
+public enum PushFontMode {
+    Default,
+    Ignore,
+    HeightPlaceholder,
+    OptionalFallback,
+    OptionalHeightPlaceholderFallback,
+    RequiredFallback,
+    Wait,
 }

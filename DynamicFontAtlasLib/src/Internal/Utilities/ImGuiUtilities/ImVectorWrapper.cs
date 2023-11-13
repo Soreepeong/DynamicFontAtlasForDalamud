@@ -294,8 +294,14 @@ internal unsafe class ImVectorWrapper<T> : IList<T>, IList, IReadOnlyList<T>
         if (capacity < this.Length)
             throw new ArgumentOutOfRangeException(nameof(capacity), capacity, null);
 
-        if (capacity == this.Length)
+        if (capacity == this.Length) {
+            if (capacity == 0 && this.Data is not null) {
+                ImGuiNative.igMemFree(this.Data);
+                this.Data = null;
+            }
+
             return false;
+        }
 
         var oldAlloc = this.Data;
         var oldSpan = new Span<T>(oldAlloc, this.Capacity);
@@ -311,9 +317,9 @@ internal unsafe class ImVectorWrapper<T> : IList<T>, IList, IReadOnlyList<T>
 
         if (!oldSpan.IsEmpty && !newSpan.IsEmpty)
             oldSpan[..this.Length].CopyTo(newSpan);
-#if DEBUG
-        new Span<byte>(newAlloc + this.Length, sizeof(T) * (capacity - this.Length)).Fill(0xCC);
-#endif
+// #if DEBUG
+//         new Span<byte>(newAlloc + this.Length, sizeof(T) * (capacity - this.Length)).Fill(0xCC);
+// #endif
 
         if (oldAlloc != null)
             ImGuiNative.igMemFree(oldAlloc);

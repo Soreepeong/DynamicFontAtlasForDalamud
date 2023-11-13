@@ -121,11 +121,11 @@ public record struct FontIdent {
 
     /// <inheritdoc/>
     public override string ToString() => this switch {
-        { BundledFont: not BundledFonts.None and var g } => $"Built-in: {g}",
-        { Game: not GameFontFamily.Undefined and var g } => $"Game: {g}",
-        { File: ({ } path, var index) } => $"File: {path}#{index}",
-        { Memory: ({ } name, var index) } => $"Memory: {name}#{index}",
-        { System: ({ } name, var variant) } => $"System: {name}({variant})",
+        { BundledFont: not BundledFonts.None and var g } => $"{g}",
+        { Game: not GameFontFamily.Undefined and var g } => $"{g}",
+        { File: ({ } path, var index) } => $"{path}#{index}",
+        { Memory: ({ } name, var index) } => $"\"{name}\"#{index}",
+        { System: ({ } name, var variant) } => $"{name}({variant})",
         _ => "-",
     };
 

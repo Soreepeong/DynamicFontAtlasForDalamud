@@ -6,7 +6,6 @@ using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text.Unicode;
-using DynamicFontAtlasLib.FontIdentificationStructs;
 using DynamicFontAtlasLib.Internal.Utilities.ImGuiUtilities;
 using ImGuiNET;
 
@@ -109,8 +108,6 @@ internal abstract unsafe class DynamicFont : IDisposable {
         this.IndexedHotData.Resize(maxCodepoint + 1);
         this.IndexLookup.Resize(maxCodepoint + 1, ushort.MaxValue);
     }
-
-    public abstract bool IsFontIdent(in FontIdent ident);
 
     protected bool ApplyFallbackGlyph(char codepoint) {
         if (this.LoadAttemptedGlyphs[codepoint])

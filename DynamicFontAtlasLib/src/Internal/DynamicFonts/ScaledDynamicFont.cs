@@ -95,7 +95,4 @@ internal unsafe class ScaledDynamicFont : DynamicFont {
         if (changed)
             this.UpdateReferencesToVectorItems();
     }
-
-    /// <inheritdoc/>
-    public override bool IsFontIdent(in FontIdent ident) => this.BaseFont.IsFontIdent(ident);
 }

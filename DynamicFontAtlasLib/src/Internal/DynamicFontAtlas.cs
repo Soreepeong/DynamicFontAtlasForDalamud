@@ -5,7 +5,6 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Numerics;
-using System.Reactive.Disposables;
 using System.Text.Unicode;
 using System.Threading;
 using System.Threading.Tasks;
@@ -30,13 +29,13 @@ internal sealed class DynamicFontAtlas : IDynamicFontAtlas {
     private readonly Func<string, Task<byte[]>> gameFileFetcher;
 
     private readonly DisposeStack disposeStack = new();
-    private readonly unsafe ImFontAtlas* pAtlas;
     private readonly ReaderWriterLockSlim fontLock = new();
     private readonly Dictionary<(FontIdent Ident, int SizePx), Task<DynamicFont>> fontEntries = new();
     private readonly Dictionary<(FontChain Chain, float Scale), Task<DynamicFont>> fontChains = new();
+    private readonly Dictionary<int, HeightPlaceholderDynamicFont> fontPlaceholders = new();
     private readonly Dictionary<nint, DynamicFont> fontPtrToFont = new();
 
-    private bool isDisposed;
+    private unsafe ImFontAtlas* pAtlas;
     private float lastGamma = float.NaN;
     private int suppressTextureUpdateCounter;
 
@@ -59,7 +58,11 @@ internal sealed class DynamicFontAtlas : IDynamicFontAtlas {
             this.dalamudAssetDirectory = dalamudAssetDirectory;
 
             this.pAtlas = ImGuiNative.ImFontAtlas_ImFontAtlas();
-            this.disposeStack.Add(() => ImGuiNative.ImFontAtlas_destroy(this.pAtlas));
+            this.disposeStack.Add(() =>
+            {
+                ImGuiNative.ImFontAtlas_destroy(this.pAtlas);
+                this.pAtlas = null;
+            });
 
             this.ImTextures = new(&this.pAtlas->Textures, null);
             this.TextureWraps = new();
@@ -79,8 +82,16 @@ internal sealed class DynamicFontAtlas : IDynamicFontAtlas {
     /// </summary>
     ~DynamicFontAtlas() => this.ReleaseUnmanagedResources();
 
+    public unsafe bool IsDisposed => this.pAtlas is null;
+
     /// <inheritdoc/>
     public unsafe ImFontAtlasPtr AtlasPtr => new(this.pAtlas);
+
+    /// <inheritdoc/>
+    public PushFontMode DefaultPushFontErrorMode { get; set; } = PushFontMode.Ignore;
+
+    /// <inheritdoc/>
+    public PushFontMode DefaultPushFontLoadingMode { get; set; } = PushFontMode.Ignore;
 
     /// <inheritdoc/>
     public FontChain FallbackFontChain { get; set; }
@@ -142,6 +153,9 @@ internal sealed class DynamicFontAtlas : IDynamicFontAtlas {
 
     /// <inheritdoc/>
     public void ClearLoadErrorHistory() {
+        if (this.IsDisposed)
+            throw new ObjectDisposedException(nameof(DynamicFontAtlas));
+
         this.fontLock.EnterWriteLock();
         try {
             foreach (var chain in this.fontChains
@@ -164,19 +178,21 @@ internal sealed class DynamicFontAtlas : IDynamicFontAtlas {
 
     /// <inheritdoc/>
     public void Dispose() {
-        if (this.isDisposed)
+        if (this.IsDisposed)
             return;
 
         this.Clear(true);
         this.disposeStack.Dispose();
         this.ReleaseUnmanagedResources();
 
-        this.isDisposed = true;
         GC.SuppressFinalize(this);
     }
 
     /// <inheritdoc/>
     public Exception? GetLoadException(in FontChain chain) {
+        if (this.IsDisposed)
+            throw new ObjectDisposedException(nameof(DynamicFontAtlas));
+
         this.fontLock.EnterReadLock();
         try {
             return this.fontChains.TryGetValue((chain, this.ScaleGetter()), out var task)
@@ -195,45 +211,97 @@ internal sealed class DynamicFontAtlas : IDynamicFontAtlas {
         this.GetFontFromPtr(font)?.LoadGlyphs(ranges);
 
     /// <inheritdoc/>
-    public IDisposable? SuppressTextureUpdatesScoped() {
-        if (this.isDisposed)
-            return null;
+    public void SuppressTextureUpdatesEnter() {
+        if (this.IsDisposed)
+            throw new ObjectDisposedException(nameof(DynamicFontAtlas));
 
         this.suppressTextureUpdateCounter++;
-        return Disposable.Create(
-            () =>
-            {
-                if (--this.suppressTextureUpdateCounter == 0)
-                    this.UpdateTextures(true);
-            });
     }
 
     /// <inheritdoc/>
-    public IDisposable? PushFontScoped(in FontChain chain, bool waitForLoad = false) {
-        if (this.isDisposed)
-            return null;
+    public void SuppressTextureUpdatesExit() {
+        if (this.IsDisposed)
+            throw new ObjectDisposedException(nameof(DynamicFontAtlas));
 
-        try {
-            var fontTask = this.GetFontTask(chain, this.ScaleGetter());
-            if (waitForLoad)
-                fontTask.Wait();
+        if (--this.suppressTextureUpdateCounter == 0)
+            this.UpdateTextures(true);
+    }
 
-            if (!fontTask.IsCompletedSuccessfully)
-                return null;
+    /// <inheritdoc/>
+    public PushFontResult PushFontScoped(
+        in FontChain chain,
+        PushFontMode errorMode = PushFontMode.Ignore,
+        PushFontMode loadingMode = PushFontMode.Ignore) {
+        if (this.IsDisposed)
+            throw new ObjectDisposedException(nameof(DynamicFontAtlas));
 
-            ImGui.PushFont(fontTask.Result.FontPtr);
-        } catch {
-            return null;
+        if (errorMode == PushFontMode.Default) {
+            errorMode = this.DefaultPushFontErrorMode;
+            if (errorMode == PushFontMode.Default)
+                errorMode = PushFontMode.Ignore;
         }
 
-        this.suppressTextureUpdateCounter++;
-        return Disposable.Create(
-            () =>
-            {
-                ImGui.PopFont();
-                if (--this.suppressTextureUpdateCounter == 0)
-                    this.UpdateTextures(true);
-            });
+        if (loadingMode == PushFontMode.Default) {
+            loadingMode = this.DefaultPushFontLoadingMode;
+            if (loadingMode == PushFontMode.Default)
+                loadingMode = PushFontMode.Ignore;
+        }
+
+        var sizePx = chain.PrimaryFont.SizePx * chain.LineHeight;
+
+        try {
+            var fontTask = this.GetFontTask(chain, this.ScaleGetter(), false);
+            if (loadingMode == PushFontMode.Wait)
+                fontTask.Wait();
+
+            if (!fontTask.IsCompletedSuccessfully) {
+                var mode = fontTask.IsFaulted ? errorMode : loadingMode;
+                switch (mode) {
+                    case PushFontMode.Ignore:
+                        return new(this, default, fontTask.Exception, PushFontResultState.Empty);
+                    case PushFontMode.HeightPlaceholder:
+                        return new(this,
+                            this.GetPlaceholderFont(sizePx).FontPtr,
+                            fontTask.Exception,
+                            PushFontResultState.Placeholder);
+                    case PushFontMode.OptionalFallback:
+                    case PushFontMode.OptionalHeightPlaceholderFallback:
+                    case PushFontMode.RequiredFallback: {
+                        var fallback = this.GetFallbackFontTask(sizePx);
+                        if (mode == PushFontMode.RequiredFallback)
+                            fallback.Wait();
+
+                        if (fallback is { IsCompletedSuccessfully: true, Result: not null })
+                            return new(this, fallback.Result.FontPtr, fontTask.Exception, PushFontResultState.Fallback);
+
+                        if (mode == PushFontMode.OptionalHeightPlaceholderFallback) {
+                            return new(this,
+                                this.GetPlaceholderFont(sizePx).FontPtr,
+                                fontTask.Exception,
+                                PushFontResultState.Placeholder);
+                        }
+
+                        return new(this, default, fontTask.Exception, PushFontResultState.Empty);
+                    }
+                    case PushFontMode.Wait when fontTask.IsFaulted:
+                        throw new ArgumentOutOfRangeException(nameof(errorMode),
+                            errorMode,
+                            $"{nameof(errorMode)} cannot be {PushFontMode.Wait}");
+                    case PushFontMode.Wait:
+                        throw new InvalidOperationException(
+                            "Wait returned, IsCompletedSuccessfully is false, but IsFaulted is false?");
+                    default:
+                        throw new ArgumentOutOfRangeException(
+                            fontTask.IsFaulted ? nameof(errorMode) : nameof(loadingMode),
+                            fontTask.IsFaulted ? errorMode : loadingMode,
+                            null);
+                }
+            }
+
+            return new(this, fontTask.Result.FontPtr, null, PushFontResultState.Loaded);
+        } catch (Exception e) {
+            return new(this, null, e, PushFontResultState.Empty);
+        }
     }
 
     /// <inheritdoc/>
@@ -257,7 +325,7 @@ internal sealed class DynamicFontAtlas : IDynamicFontAtlas {
     /// <param name="sizePx">Size in pixels. Note that it will be rounded to nearest integers.</param>
     /// <returns>Found font wrapper.</returns>
     internal Task<DynamicFont> GetFontTask(in FontIdent ident, int sizePx) {
-        if (this.isDisposed)
+        if (this.IsDisposed)
             throw new ObjectDisposedException(nameof(DynamicFontAtlas));
 
         this.ProcessGammaChanges();
@@ -301,6 +369,7 @@ internal sealed class DynamicFontAtlas : IDynamicFontAtlas {
                         var textureIndices = await this.LoadGameFontTextures(
                             "common/font/font{0}.tex",
                             fdt.Glyphs.Max(x => x.TextureFileIndex) + 1);
+
                         return new AxisDynamicFont(this, null, gfs, fdt, textureIndices);
                     }
 
@@ -373,9 +442,10 @@ internal sealed class DynamicFontAtlas : IDynamicFontAtlas {
     /// </summary>
     /// <param name="chain">Font chain.</param>
     /// <param name="scale">Scale to apply to all font idents.</param>
+    /// <param name="noFallback">Whether to disable fallbacks.</param>
     /// <returns>Found font wrapper.</returns>
-    internal Task<DynamicFont> GetFontTask(in FontChain chain, float scale) {
-        if (this.isDisposed)
+    internal Task<DynamicFont> GetFontTask(in FontChain chain, float scale, bool noFallback) {
+        if (this.IsDisposed)
             throw new ObjectDisposedException(nameof(DynamicFontAtlas));
 
         if (!(chain.LineHeight > 0))
@@ -396,15 +466,14 @@ internal sealed class DynamicFontAtlas : IDynamicFontAtlas {
                 return fontTask;
 
             var chainCopy = chain;
-            var fallbackChain = this.FallbackFontChain;
 
             this.fontLock.EnterWriteLock();
             writeLockEntered = true;
             return this.fontChains[(chain, scale)] = Task.Run<DynamicFont>(async () =>
             {
-                var fallbackFont = chainCopy == fallbackChain
+                var fallbackFont = noFallback
                     ? null
-                    : await this.GetFallbackFontTask((int)MathF.Round(chainCopy.PrimaryFont.SizePx * scale));
+                    : await this.GetFallbackFontTask(chainCopy.PrimaryFont.SizePx);
 
                 var subfonts = await Task.WhenAll(
                     chainCopy.SecondaryFonts
@@ -434,6 +503,9 @@ internal sealed class DynamicFontAtlas : IDynamicFontAtlas {
     }
 
     internal unsafe DynamicFont? GetFontFromPtr(ImFontPtr font) {
+        if (this.IsDisposed)
+            throw new ObjectDisposedException(nameof(DynamicFontAtlas));
+
         this.fontLock.EnterReadLock();
         try {
             return this.fontPtrToFont.GetValueOrDefault((nint)font.NativePtr);
@@ -492,12 +564,13 @@ internal sealed class DynamicFontAtlas : IDynamicFontAtlas {
         }
     }
 
-    private async Task<DynamicFont?> GetFallbackFontTask(int sizePx) =>
-        this.FallbackFontChain.IsEmpty
-            ? null
-            : await this.GetFontTask(
-                this.FallbackFontChain,
-                this.ScaleGetter() * (sizePx / this.FallbackFontChain.PrimaryFont.SizePx));
+    private async Task<DynamicFont?> GetFallbackFontTask(float sizePx) => this.FallbackFontChain.IsEmpty
+        ? null
+        : await this.GetFontTask(
+            this.FallbackFontChain.ToScaled(
+                sizePx / (this.FallbackFontChain.PrimaryFont.SizePx * this.FallbackFontChain.LineHeight)),
+            this.ScaleGetter(),
+            true);
 
     private void AddTextureWhileLocked(IDalamudTextureWrap wrap) {
         this.ImTextures.Add(new() { TexID = wrap.ImGuiHandle });
@@ -505,6 +578,9 @@ internal sealed class DynamicFontAtlas : IDynamicFontAtlas {
     }
 
     private unsafe void Clear(bool disposing) {
+        if (this.IsDisposed)
+            throw new ObjectDisposedException(nameof(DynamicFontAtlas));
+
         Task.WaitAll(this.fontEntries.Values.Concat(this.fontChains.Values).Select(e => e.ContinueWith(r =>
         {
             if (r.IsCompletedSuccessfully)
@@ -588,6 +664,28 @@ internal sealed class DynamicFontAtlas : IDynamicFontAtlas {
         }
     }
 
+    private HeightPlaceholderDynamicFont GetPlaceholderFont(float sizePx) {
+        var size = (int)MathF.Round(sizePx);
+
+        this.fontLock.EnterUpgradeableReadLock();
+        try {
+            if (!fontPlaceholders.TryGetValue(size, out var v)) {
+                this.fontLock.EnterWriteLock();
+                try {
+                    if (!fontPlaceholders.TryGetValue(size, out v)) {
+                        this.fontPlaceholders[size] = v = new(this, size);
+                    }
+                } finally {
+                    this.fontLock.ExitWriteLock();
+                }
+            }
+
+            return v;
+        } finally {
+            this.fontLock.ExitUpgradeableReadLock();
+        }
+    }
+
     private async Task<int[]> LoadGameFontTextures(string format, int count) {
         var textures = await Task.WhenAll(Enumerable.Range(1, count)
             .Select(async i =>
@@ -599,7 +697,7 @@ internal sealed class DynamicFontAtlas : IDynamicFontAtlas {
                         this.device,
                         await this.gameFileFetcher(texPath))));
             }));
-        
+
         this.fontLock.EnterWriteLock();
         try {
             return textures.Select(texture =>
@@ -618,11 +716,11 @@ internal sealed class DynamicFontAtlas : IDynamicFontAtlas {
             this.fontLock.ExitWriteLock();
         }
     }
-    
+
     private unsafe void ReleaseUnmanagedResources() {
-        if (this.isDisposed) {
+        if (!this.IsDisposed) {
             ImGuiNative.ImFontAtlas_destroy(this.pAtlas);
-            this.isDisposed = true;
+            this.pAtlas = null;
         }
     }
 

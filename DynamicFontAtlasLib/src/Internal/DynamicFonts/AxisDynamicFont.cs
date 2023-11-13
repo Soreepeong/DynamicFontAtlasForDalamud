@@ -128,7 +128,4 @@ internal unsafe class AxisDynamicFont : DynamicFont {
         if (changed)
             this.UpdateReferencesToVectorItems();
     }
-
-    /// <inheritdoc/>
-    public override bool IsFontIdent(in FontIdent ident) => ident.Game == this.FontStyle.Family;
 }

@@ -70,8 +70,22 @@ public record struct FontChainEntry {
     /// </summary>
     public bool IsEmpty => this.Ident.IsEmpty || this.SizePx <= 0;
 
+    /// <summary>
+    /// Creates a new <see cref="FontChainEntry"/> that is scaled by <paramref name="scale"/>.
+    /// </summary>
+    /// <param name="scale">The scale.</param>
+    /// <returns>Scaled <see cref="FontChainEntry"/>.</returns>
+    public readonly FontChainEntry ToScaled(float scale) => new() {
+        Ident = this.Ident,
+        SizePx = MathF.Round(this.SizePx * scale),
+        LetterSpacing = MathF.Round(this.LetterSpacing * scale),
+        OffsetX = MathF.Round(this.OffsetX * scale),
+        OffsetY = MathF.Round(this.OffsetY * scale),
+        Ranges = this.Ranges,
+    };
+
     /// <inheritdoc/>
-    public override int GetHashCode() =>
+    public override readonly int GetHashCode() =>
         HashCode.Combine(this.Ident.GetHashCode(), this.SizePx, this.LetterSpacing, this.OffsetX, this.OffsetY);
 
     /// <summary>
@@ -84,7 +98,7 @@ public record struct FontChainEntry {
         || ranges.Any(x => x.FirstCodePoint <= c && c < x.FirstCodePoint + x.Length);
 
     /// <inheritdoc/>
-    public override string ToString() =>
+    public override readonly string ToString() =>
         $"{this.Ident} ({this.SizePx}px"
         + (this.OffsetX != 0 || this.OffsetY != 0 ? $", off=({this.OffsetX}, {this.OffsetY})" : string.Empty)
         + (this.LetterSpacing != 0 ? $", ls={this.LetterSpacing}" : string.Empty)

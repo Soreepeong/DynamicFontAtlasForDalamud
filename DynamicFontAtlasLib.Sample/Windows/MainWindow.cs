@@ -100,6 +100,8 @@ public class MainWindow : Window, IDisposable {
                 .WithBindToDalamudConfiguration();
 
             this.atlas.FallbackFontChain = new(new FontChainEntry(FontIdent.FromSystem("Gulim"), 12f));
+            this.atlas.DefaultPushFontErrorMode = PushFontMode.HeightPlaceholder;
+            this.atlas.DefaultPushFontLoadingMode = PushFontMode.OptionalHeightPlaceholderFallback;
 
             this.systemEntries.Clear();
             this.systemEntries.AddRange(
@@ -191,8 +193,12 @@ public class MainWindow : Window, IDisposable {
                         continue;
 
                     var entry = this.systemEntries[i];
-                    using (this.atlas.PushFontScoped(entry, this.fontSize)) {
-                        var s = $"{entry}: {this.buffer}";
+                    using (var font = this.atlas.PushFontScoped(entry, this.fontSize)) {
+                        var s = font switch {
+                            {IsLoading: true} => $"{entry} [Loading]",
+                            {IsFailed: true} => $"{entry} [Fail]",
+                            _ => $"{entry}: {this.buffer}",
+                        };
                         this.atlas.LoadGlyphs(s);
                         ImGui.TextUnformatted(s);
                     }

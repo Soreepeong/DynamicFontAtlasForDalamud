@@ -48,7 +48,6 @@ internal class DirectWriteDynamicFont : DynamicFont {
             using (var renderingParams = this.disposeStack.Add(new RenderingParams(this.factory)))
                 this.renderMode = this.face.GetRecommendedRenderingMode(this.sizePt, 1, MeasuringMode, renderingParams);
 
-            this.Ident = ident;
             this.Metrics = this.face.Metrics;
             this.sizePt = (sizePx * 3) / 4;
             this.multiplier = this.sizePt / this.Metrics.DesignUnitsPerEm;
@@ -79,8 +78,6 @@ internal class DirectWriteDynamicFont : DynamicFont {
             throw;
         }
     }
-
-    public FontIdent Ident { get; }
 
     public FontMetrics Metrics { get; }
 
@@ -377,9 +374,6 @@ internal class DirectWriteDynamicFont : DynamicFont {
             ranges.SelectMany(x => Enumerable.Range(x.FirstCodePoint, x.Length))
                 .Where(x => x <= char.MaxValue)
                 .Select(x => (char)x));
-
-    /// <inheritdoc/>
-    public override bool IsFontIdent(in FontIdent ident) => this.Ident == ident;
 
     /// <inheritdoc/>
     protected override void Dispose(bool disposing) {

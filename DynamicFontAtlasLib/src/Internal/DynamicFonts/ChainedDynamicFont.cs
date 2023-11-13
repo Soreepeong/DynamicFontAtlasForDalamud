@@ -134,9 +134,6 @@ internal sealed unsafe class ChainedDynamicFont : DynamicFont {
             this.UpdateReferencesToVectorItems();
     }
 
-    /// <inheritdoc/>
-    public override bool IsFontIdent(in FontIdent ident) => false;
-
     private bool EnsureCharacter(char c, in FontChainEntry entry, DynamicFont font) {
         if (this.LoadAttemptedGlyphs[c])
             return false;

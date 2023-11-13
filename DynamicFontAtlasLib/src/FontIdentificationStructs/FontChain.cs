@@ -90,18 +90,31 @@ public struct FontChain : IEquatable<FontChain> {
     /// <summary>
     /// Gets the value indicating whether this <see cref="FontChain"/> is empty.
     /// </summary>
-    public bool IsEmpty => this.PrimaryFont.IsEmpty;
+    public bool IsEmpty => this.PrimaryFont.IsEmpty || this.LineHeight <= 0;
 
     public static bool operator ==(FontChain left, FontChain right) => left.Equals(right);
 
     public static bool operator !=(FontChain left, FontChain right) => !(left == right);
 
     /// <inheritdoc />
-    public override bool Equals(object? other) => other is FontChain o && this.Equals(o);
+    public override readonly bool Equals(object? other) => other is FontChain o && this.Equals(o);
+
+    /// <summary>
+    /// Creates a new <see cref="FontChain"/> that is scaled by <paramref name="scale"/>.
+    /// </summary>
+    /// <param name="scale">The scale.</param>
+    /// <returns>Scaled <see cref="FontChain"/>.</returns>
+    public readonly FontChain ToScaled(float scale) => new() {
+        PrimaryFont = this.PrimaryFont.ToScaled(scale),
+        SecondaryFontsNullable = this.SecondaryFontsNullable?.Select(x => x.ToScaled(scale)).ToImmutableList(),
+        LineHeight = this.LineHeight,
+        GlyphRatio = this.GlyphRatio,
+        VerticalAlignment = this.VerticalAlignment,
+    };
 
     /// <inheritdoc cref="object.Equals(object?)" />
     [SuppressMessage("ReSharper", "CompareOfFloatsByEqualityOperator", Justification = "It's an Equals function")]
-    public bool Equals(FontChain other) =>
+    public readonly bool Equals(FontChain other) =>
         this.LineHeight == other.LineHeight
         && this.GlyphRatio == other.GlyphRatio
         && this.VerticalAlignment == other.VerticalAlignment
@@ -110,7 +123,7 @@ public struct FontChain : IEquatable<FontChain> {
         && this.SecondaryFonts.Zip(other.SecondaryFonts).All(x => x.First == x.Second);
 
     /// <inheritdoc/>
-    public override int GetHashCode() =>
+    public override readonly int GetHashCode() =>
         this.SecondaryFonts.Aggregate(
             HashCode.Combine(this.LineHeight, this.GlyphRatio, this.VerticalAlignment, this.PrimaryFont),
             (p, e) => HashCode.Combine(p, e.GetHashCode()));
