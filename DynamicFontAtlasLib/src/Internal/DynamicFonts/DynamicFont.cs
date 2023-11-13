@@ -49,8 +49,6 @@ internal abstract unsafe class DynamicFont : IDisposable {
 
     public BitArray LoadAttemptedGlyphs { get; }
 
-    internal 
-
     protected ImFont* FontNative { get; }
 
     public abstract bool IsCharAvailable(char c);
@@ -198,6 +196,9 @@ internal abstract unsafe class DynamicFont : IDisposable {
 
     protected void ReplaceKerningPairs(IEnumerable<ImFontKerningPair> sortedPairs) {
         this.KerningPairs.Clear();
+        foreach (ref var ihd in this.IndexedHotData.AsSpan)
+            ihd.KerningPairInfo = 0u;
+        this.FrequentKerningPairs.AsSpan.Clear();
         foreach (var pair in sortedPairs) {
             if (pair is { Left: < FrequentKerningPairsMaxCodepoint, Right: < FrequentKerningPairsMaxCodepoint }) {
                 this.FrequentKerningPairs[(pair.Left * FrequentKerningPairsMaxCodepoint) + pair.Right] =

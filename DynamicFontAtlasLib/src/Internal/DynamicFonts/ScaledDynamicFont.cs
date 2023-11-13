@@ -12,8 +12,13 @@ internal unsafe class ScaledDynamicFont : DynamicFont {
     public ScaledDynamicFont(DynamicFontAtlas atlas, DynamicFont src, float scale)
         : base(atlas, (BitArray)src.LoadAttemptedGlyphs.Clone()) {
         this.BaseFont = src;
-        this.IndexedHotData.AddRange(src.IndexedHotData);
+        this.IndexedHotData.Clear();
         this.FrequentKerningPairs.Clear();
+        this.IndexLookup.Clear();
+        this.Glyphs.Clear();
+        this.KerningPairs.Clear();
+        
+        this.IndexedHotData.AddRange(src.IndexedHotData);
         this.FrequentKerningPairs.AddRange(src.FrequentKerningPairs);
         this.IndexLookup.AddRange(src.IndexLookup);
         this.Glyphs.AddRange(src.Glyphs);

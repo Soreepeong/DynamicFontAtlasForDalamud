@@ -36,18 +36,6 @@ public readonly struct Gpos {
             yield return new(this.Memory[(this.LookupListOffset + offset)..]);
     }
 
-    [Flags]
-    public enum ValueFormatFlags : ushort {
-        PlacementX = 1 << 0,
-        PlacementY = 1 << 1,
-        AdvanceX = 1 << 2,
-        AdvanceY = 1 << 3,
-        PlacementDeviceOffsetX = 1 << 4,
-        PlacementDeviceOffsetY = 1 << 5,
-        AdvanceDeviceOffsetX = 1 << 6,
-        AdvanceDeviceOffsetY = 1 << 7,
-    }
-
     public struct ValueRecord {
         public short PlacementX;
         public short PlacementY;
@@ -58,26 +46,26 @@ public readonly struct Gpos {
         public short AdvanceDeviceOffsetX;
         public short AdvanceDeviceOffsetY;
 
-        public ValueRecord(PointerSpan<byte> pointerSpan, ValueFormatFlags valueFormatFlags) {
+        public ValueRecord(PointerSpan<byte> pointerSpan, ValueFormat valueFormat) {
             var offset = 0;
-            if ((valueFormatFlags & ValueFormatFlags.PlacementX) != 0)
+            if ((valueFormat & ValueFormat.PlacementX) != 0)
                 pointerSpan.ReadBig(ref offset, out this.PlacementX);
 
-            if ((valueFormatFlags & ValueFormatFlags.PlacementY) != 0)
+            if ((valueFormat & ValueFormat.PlacementY) != 0)
                 pointerSpan.ReadBig(ref offset, out this.PlacementY);
 
-            if ((valueFormatFlags & ValueFormatFlags.AdvanceX) != 0) pointerSpan.ReadBig(ref offset, out this.AdvanceX);
-            if ((valueFormatFlags & ValueFormatFlags.AdvanceY) != 0) pointerSpan.ReadBig(ref offset, out this.AdvanceY);
-            if ((valueFormatFlags & ValueFormatFlags.PlacementDeviceOffsetX) != 0)
+            if ((valueFormat & ValueFormat.AdvanceX) != 0) pointerSpan.ReadBig(ref offset, out this.AdvanceX);
+            if ((valueFormat & ValueFormat.AdvanceY) != 0) pointerSpan.ReadBig(ref offset, out this.AdvanceY);
+            if ((valueFormat & ValueFormat.PlacementDeviceOffsetX) != 0)
                 pointerSpan.ReadBig(ref offset, out this.PlacementDeviceOffsetX);
 
-            if ((valueFormatFlags & ValueFormatFlags.PlacementDeviceOffsetY) != 0)
+            if ((valueFormat & ValueFormat.PlacementDeviceOffsetY) != 0)
                 pointerSpan.ReadBig(ref offset, out this.PlacementDeviceOffsetY);
 
-            if ((valueFormatFlags & ValueFormatFlags.AdvanceDeviceOffsetX) != 0)
+            if ((valueFormat & ValueFormat.AdvanceDeviceOffsetX) != 0)
                 pointerSpan.ReadBig(ref offset, out this.AdvanceDeviceOffsetX);
 
-            if ((valueFormatFlags & ValueFormatFlags.AdvanceDeviceOffsetY) != 0)
+            if ((valueFormat & ValueFormat.AdvanceDeviceOffsetY) != 0)
                 pointerSpan.ReadBig(ref offset, out this.AdvanceDeviceOffsetY);
         }
     }
@@ -102,8 +90,8 @@ public readonly struct Gpos {
 
             public ushort Format => this.Memory.ReadU16Big(0);
             public ushort CoverageOffset => this.Memory.ReadU16Big(2);
-            public ValueFormatFlags ValueFormat1 => this.Memory.ReadEnumBig<ValueFormatFlags>(4);
-            public ValueFormatFlags ValueFormat2 => this.Memory.ReadEnumBig<ValueFormatFlags>(6);
+            public ValueFormat ValueFormat1 => this.Memory.ReadEnumBig<ValueFormat>(4);
+            public ValueFormat ValueFormat2 => this.Memory.ReadEnumBig<ValueFormat>(6);
             public ushort PairSetCount => this.Memory.ReadU16Big(8);
 
             public BigEndianPointerSpan<ushort> PairSetOffsets => new(
@@ -118,8 +106,8 @@ public readonly struct Gpos {
             public CoverageTable CoverageTable => new(this.Memory[this.CoverageOffset..]);
 
             public IEnumerable<KerningPair> ExtractAdvanceX() {
-                if ((this.ValueFormat1 & ValueFormatFlags.AdvanceX) == 0 &&
-                    (this.ValueFormat2 & ValueFormatFlags.AdvanceX) == 0) {
+                if ((this.ValueFormat1 & ValueFormat.AdvanceX) == 0 &&
+                    (this.ValueFormat2 & ValueFormat.AdvanceX) == 0) {
                     yield break;
                 }
 
@@ -141,6 +129,9 @@ public readonly struct Gpos {
                             foreach (var pairIndex in Enumerable.Range(0, pairSetView.Count)) {
                                 var pair = pairSetView[pairIndex];
                                 var adj = (short)(pair.Record1.AdvanceX + pair.Record2.PlacementX);
+                                if (adj >= 10000)
+                                    System.Diagnostics.Debugger.Break();
+
                                 if (adj != 0)
                                     yield return new(glyph1Id, pair.SecondGlyph, adj);
                             }
@@ -178,32 +169,35 @@ public readonly struct Gpos {
                 }
             }
 
-            public struct PairSet {
-                public PointerSpan<byte> Memory;
-                public ValueFormatFlags ValueFormatFlags1;
-                public ValueFormatFlags ValueFormatFlags2;
+            public readonly struct PairSet {
+                public readonly PointerSpan<byte> Memory;
+                public readonly ValueFormat ValueFormat1;
+                public readonly ValueFormat ValueFormat2;
+                public readonly int PairValue1Size;
+                public readonly int PairValue2Size;
+                public readonly int PairSize;
 
                 public PairSet(
                     PointerSpan<byte> memory,
-                    ValueFormatFlags valueFormatFlags1,
-                    ValueFormatFlags valueFormatFlags2) {
+                    ValueFormat valueFormat1,
+                    ValueFormat valueFormat2) {
                     this.Memory = memory;
-                    this.ValueFormatFlags1 = valueFormatFlags1;
-                    this.ValueFormatFlags2 = valueFormatFlags2;
+                    this.ValueFormat1 = valueFormat1;
+                    this.ValueFormat2 = valueFormat2;
+                    this.PairValue1Size = this.ValueFormat1.NumBytes();
+                    this.PairValue2Size = this.ValueFormat2.NumBytes();
+                    this.PairSize = 2 + this.PairValue1Size + this.PairValue2Size;
                 }
 
                 public ushort Count => this.Memory.ReadU16Big(0);
 
-                public int RecordElementSize =>
-                    (1 + ushort.PopCount((ushort)ValueFormatFlags1) + ushort.PopCount((ushort)ValueFormatFlags2)) * 2;
-
                 public PairValueRecord this[int index] {
                     get {
-                        var pvr = this.Memory[(2 + (this.RecordElementSize * index))..];
+                        var pvr = this.Memory.Slice(2 + (this.PairSize * index), this.PairSize);
                         return new() {
                             SecondGlyph = pvr.ReadU16Big(0),
-                            Record1 = new(pvr[2..], this.ValueFormatFlags1),
-                            Record2 = new(pvr[(2 + this.RecordElementSize)..], this.ValueFormatFlags2)
+                            Record1 = new(pvr.Slice(2, this.PairValue1Size), this.ValueFormat1),
+                            Record2 = new(pvr.Slice(2 + this.PairValue1Size, this.PairValue2Size), this.ValueFormat2),
                         };
                     }
                 }
@@ -216,23 +210,28 @@ public readonly struct Gpos {
             }
         }
 
-        public struct Format2 {
-            public PointerSpan<byte> Memory;
+        public readonly struct Format2 {
+            public readonly PointerSpan<byte> Memory;
 
-            public Format2(PointerSpan<byte> memory) => this.Memory = memory;
+            public Format2(PointerSpan<byte> memory) {
+                this.Memory = memory;
+                this.PairValue1Size = this.ValueFormat1.NumBytes();
+                this.PairValue2Size = this.ValueFormat2.NumBytes();
+                this.PairSize = this.PairValue1Size + this.PairValue2Size;
+            }
 
             public ushort Format => this.Memory.ReadU16Big(0);
             public ushort CoverageOffset => this.Memory.ReadU16Big(2);
-            public ValueFormatFlags ValueFormat1 => this.Memory.ReadEnumBig<ValueFormatFlags>(4);
-            public ValueFormatFlags ValueFormat2 => this.Memory.ReadEnumBig<ValueFormatFlags>(6);
+            public ValueFormat ValueFormat1 => this.Memory.ReadEnumBig<ValueFormat>(4);
+            public ValueFormat ValueFormat2 => this.Memory.ReadEnumBig<ValueFormat>(6);
             public ushort ClassDef1Offset => this.Memory.ReadU16Big(8);
             public ushort ClassDef2Offset => this.Memory.ReadU16Big(10);
             public ushort Class1Count => this.Memory.ReadU16Big(12);
             public ushort Class2Count => this.Memory.ReadU16Big(14);
 
-            public int Value1Size => 2 * ushort.PopCount((ushort)this.ValueFormat1);
-            public int Value2Size => 2 * ushort.PopCount((ushort)this.ValueFormat2);
-            public int ValueSize => this.Value1Size + this.Value2Size;
+            public readonly int PairValue1Size;
+            public readonly int PairValue2Size;
+            public readonly int PairSize;
 
             public ClassDefTable ClassDefTable1 => new(this.Memory[this.ClassDef1Offset..]);
             public ClassDefTable ClassDefTable2 => new(this.Memory[this.ClassDef2Offset..]);
@@ -247,33 +246,35 @@ public readonly struct Gpos {
                     if (class2Index < 0 || class2Index >= this.Class2Count)
                         throw new IndexOutOfRangeException();
 
-                    var offset = 16 + (2 * this.ValueSize * ((class1Index * this.Class2Count) + class2Index));
+                    var offset = 16 + (this.PairSize * ((class1Index * this.Class2Count) + class2Index));
                     return (
-                        new(this.Memory[offset..], this.ValueFormat1),
-                        new(this.Memory[(offset + this.Value1Size)..], this.ValueFormat2));
+                        new(this.Memory.Slice(offset, this.PairValue1Size), this.ValueFormat1),
+                        new(this.Memory.Slice(offset + this.PairValue1Size, this.PairValue2Size), this.ValueFormat2));
                 }
             }
 
             public IEnumerable<KerningPair> ExtractAdvanceX() {
-                if ((this.ValueFormat1 & ValueFormatFlags.AdvanceX) == 0 &&
-                    (this.ValueFormat2 & ValueFormatFlags.AdvanceX) == 0) {
+                if ((this.ValueFormat1 & ValueFormat.AdvanceX) == 0 &&
+                    (this.ValueFormat2 & ValueFormat.AdvanceX) == 0) {
                     yield break;
                 }
 
-                var class1Count = this.Class1Count;
-                var class2Count = this.Class2Count;
                 var classes1 = this.ClassDefTable1.Enumerate()
-                    .Where(x => x.Class < class1Count)
                     .GroupBy(x => x.Class, x => x.GlyphId)
                     .ToImmutableDictionary(x => x.Key, x => x.ToImmutableSortedSet());
 
                 var classes2 = this.ClassDefTable2.Enumerate()
-                    .Where(x => x.Class < class2Count)
                     .GroupBy(x => x.Class, x => x.GlyphId)
                     .ToImmutableDictionary(x => x.Key, x => x.ToImmutableSortedSet());
 
-                foreach (var (class1, glyphs1) in classes1) {
-                    foreach (var (class2, glyphs2) in classes2) {
+                foreach (var class1 in Enumerable.Range(0, this.Class1Count)) {
+                    if (!classes1.TryGetValue((ushort)class1, out var glyphs1))
+                        continue;
+
+                    foreach (var class2 in Enumerable.Range(0, this.Class2Count)) {
+                        if (!classes2.TryGetValue((ushort)class2, out var glyphs2))
+                            continue;
+
                         (ValueRecord, ValueRecord) record;
                         try {
                             record = this[class1, class2];

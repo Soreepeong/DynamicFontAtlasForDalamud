@@ -72,7 +72,7 @@ internal class DirectWriteDynamicFont : DynamicFont {
                     Left = x.Left,
                     Right = x.Right,
                     AdvanceXAdjustment = MathF.Round(x.Value * this.multiplier),
-                }));
+                }).ToArray());
         } catch (Exception) {
             this.disposeStack.Dispose();
             throw;
