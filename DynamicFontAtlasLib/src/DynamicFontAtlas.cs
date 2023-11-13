@@ -461,23 +461,34 @@ public sealed class DynamicFontAtlas : IDisposable {
                                     newTextureIndices[i] = this.TextureWraps.Count + addCounter++;
                                 }
 
-                                this.ImTextures.EnsureCapacity(this.ImTextures.Length + addCounter);
-                                this.TextureWraps.EnsureCapacity(this.TextureWraps.Count + addCounter);
+                                this.fontLock.EnterWriteLock();
+                                try {
+                                    this.ImTextures.EnsureCapacity(this.ImTextures.Length + addCounter);
+                                    this.TextureWraps.EnsureCapacity(this.TextureWraps.Count + addCounter);
+                                } finally {
+                                    this.fontLock.ExitWriteLock();
+                                }
+
                                 errorDispose.Cancel();
                             }
 
                             this.gameFontTextures[filename] = textureIndices = newTextureIndices;
 
-                            foreach (var i in Enumerable.Range(0, numExpectedTex)) {
-                                if (newTextureWraps[i] is not { } wrap)
-                                    continue;
+                            this.fontLock.EnterWriteLock();
+                            try {
+                                foreach (var i in Enumerable.Range(0, numExpectedTex)) {
+                                    if (newTextureWraps[i] is not { } wrap)
+                                        continue;
 
-                                Debug.Assert(
-                                    textureIndices[i] == this.ImTextures.Length
-                                    && textureIndices[i] == this.TextureWraps.Count,
-                                    "Counts must be same");
+                                    Debug.Assert(
+                                        textureIndices[i] == this.ImTextures.Length
+                                        && textureIndices[i] == this.TextureWraps.Count,
+                                        "Counts must be same");
 
-                                this.AddTextureWhileLocked(wrap);
+                                    this.AddTextureWhileLocked(wrap);
+                                }
+                            } finally {
+                                this.fontLock.ExitWriteLock();
                             }
                         }
 

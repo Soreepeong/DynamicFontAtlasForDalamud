@@ -9,7 +9,7 @@ using DynamicFontAtlasLib.Internal.Utilities.ImGuiUtilities;
 
 namespace DynamicFontAtlasLib.Internal.DynamicFonts;
 
-internal unsafe class ChainedDynamicFont : DynamicFont {
+internal sealed unsafe class ChainedDynamicFont : DynamicFont {
     private readonly float globalScale;
 
     public ChainedDynamicFont(
@@ -40,7 +40,16 @@ internal unsafe class ChainedDynamicFont : DynamicFont {
         this.Font.Descent = this.Subfonts[0].Font.Descent
             + MathF.Floor((chain.PrimaryFont.SizePx * this.globalScale * (chain.LineHeight - 1f)) / 2);
 
-        this.LoadGlyphs(' ', (char)this.Font.FallbackChar, (char)this.Font.EllipsisChar, (char)this.Font.DotChar);
+        this.LoadGlyphs(
+            this.ZipChainFont()
+                .SelectMany(ef =>
+                    ef.Second.Glyphs
+                        .Where(x => ef.First.RangeContainsCharacter(x.Codepoint))
+                        .Select(x => (char)x.Codepoint))
+                .Append(' ')
+                .Append((char)this.Font.FallbackChar)
+                .Append((char)this.Font.EllipsisChar)
+                .Append((char)this.Font.DotChar));
 
         var rawDistances = atlas.Cache.Get(chain,
             () => this.ZipChainFont()
