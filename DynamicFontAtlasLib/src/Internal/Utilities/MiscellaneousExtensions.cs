@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using DynamicFontAtlasLib.TrueType.CommonStructs;
 using SharpDX;
 
@@ -24,6 +25,18 @@ internal static class MiscellaneousExtensions {
 
         if (excs is not null)
             throw excs.Count == 1 ? excs[0] : new AggregateException(excs);
+    }
+
+    public static Task<T> AsStarted<T>(this Task<T> task) {
+        if (task.Status == TaskStatus.Created) {
+            try {
+                task.Start();
+            } catch (InvalidOperationException) {
+                // don't care
+            }
+        }
+
+        return task;
     }
 
     public static PointerSpan<byte> ToPointerSpan(this DataPointer sdxdp) => new(sdxdp.Pointer, sdxdp.Size);

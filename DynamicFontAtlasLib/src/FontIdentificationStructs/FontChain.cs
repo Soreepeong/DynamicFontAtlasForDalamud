@@ -87,6 +87,11 @@ public struct FontChain : IEquatable<FontChain> {
     /// </summary>
     public FontChainVerticalAlignment VerticalAlignment = FontChainVerticalAlignment.Baseline;
 
+    /// <summary>
+    /// Gets the value indicating whether this <see cref="FontChain"/> is empty.
+    /// </summary>
+    public bool IsEmpty => this.PrimaryFont.IsEmpty;
+
     public static bool operator ==(FontChain left, FontChain right) => left.Equals(right);
 
     public static bool operator !=(FontChain left, FontChain right) => !(left == right);

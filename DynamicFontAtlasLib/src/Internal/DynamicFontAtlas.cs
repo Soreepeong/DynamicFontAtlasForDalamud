@@ -6,33 +6,28 @@ using System.IO;
 using System.Linq;
 using System.Numerics;
 using System.Reactive.Disposables;
-using System.Reflection;
 using System.Text.Unicode;
 using System.Threading;
 using System.Threading.Tasks;
 using Dalamud.Interface.GameFonts;
 using Dalamud.Interface.Internal;
-using Dalamud.Interface.Utility;
-using Dalamud.Plugin.Services;
 using DynamicFontAtlasLib.FontIdentificationStructs;
-using DynamicFontAtlasLib.Internal;
 using DynamicFontAtlasLib.Internal.DynamicFonts;
+using DynamicFontAtlasLib.Internal.TextureWraps;
 using DynamicFontAtlasLib.Internal.Utilities;
 using DynamicFontAtlasLib.Internal.Utilities.ImGuiUtilities;
 using ImGuiNET;
-using Lumina.Data.Files;
 using SharpDX.Direct3D11;
 
-namespace DynamicFontAtlasLib;
+namespace DynamicFontAtlasLib.Internal;
 
 /// <summary>
 /// A wrapper for <see cref="ImFontAtlas"/> for managing fonts in an easy way.
 /// </summary>
-public sealed class DynamicFontAtlas : IDisposable {
+internal sealed class DynamicFontAtlas : IDynamicFontAtlas {
     private readonly Device device;
     private readonly DirectoryInfo dalamudAssetDirectory;
-    private readonly IDataManager dataManager;
-    private readonly ITextureProvider textureProvider;
+    private readonly Func<string, Task<byte[]>> gameFileFetcher;
 
     private readonly DisposeStack disposeStack = new();
     private readonly unsafe ImFontAtlas* pAtlas;
@@ -44,33 +39,27 @@ public sealed class DynamicFontAtlas : IDisposable {
     private readonly Dictionary<FontChain, Exception> failedChains = new();
     private readonly Dictionary<(FontIdent Ident, int SizePx), Exception> failedIdents = new();
 
+    private bool isDisposed;
     private float lastGamma = float.NaN;
     private int suppressTextureUpdateCounter;
-    private FontIdent? fallbackFontIdent;
-
-    private readonly object interfaceManager;
-    private readonly PropertyInfo fontGammaProperty;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="DynamicFontAtlas"/> class.
     /// </summary>
-    /// <param name="device">An instance ID3D11Device.</param>
-    /// <param name="dalamudAssetDirectory"></param>
-    /// <param name="dataManager">An instance of IDataManager.</param>
-    /// <param name="textureProvider">An instance of ITextureProvider.</param>
+    /// <param name="device">An instance ID3D11Device. It can be disposed after a call to constructor.</param>
+    /// <param name="dalamudAssetDirectory">Path to Dalamud assets. If invalid, loading any of <see cref="BundledFonts"/> will fail.</param>
+    /// <param name="gameFileFetcher">Fetcher callback for game files. If invalid, loading any of <see cref="GameFontFamilyAndSize"/> will fail.</param>
     /// <param name="cache">Cache.</param>
     public unsafe DynamicFontAtlas(
         Device device,
         DirectoryInfo dalamudAssetDirectory,
-        IDataManager dataManager,
-        ITextureProvider textureProvider,
+        Func<string, Task<byte[]>> gameFileFetcher,
         IDynamicFontAtlasCache cache) {
+        this.gameFileFetcher = gameFileFetcher;
         this.Cache = cache;
         try {
             this.device = this.disposeStack.Add(device.QueryInterface<Device>());
             this.dalamudAssetDirectory = dalamudAssetDirectory;
-            this.dataManager = dataManager;
-            this.textureProvider = textureProvider;
 
             this.pAtlas = ImGuiNative.ImFontAtlas_ImFontAtlas();
             this.disposeStack.Add(() => ImGuiNative.ImFontAtlas_destroy(this.pAtlas));
@@ -80,17 +69,6 @@ public sealed class DynamicFontAtlas : IDisposable {
             this.Fonts = new(&this.pAtlas->Fonts, x => x->Destroy());
             this.CustomRects = new(&this.pAtlas->CustomRects, null);
             this.FontConfigs = new(&this.pAtlas->ConfigData, null);
-
-            var serviceGenericType = Assembly.GetAssembly(typeof(IDalamudTextureWrap))!.DefinedTypes
-                .Single(x => x.FullName == "Dalamud.Service`1");
-
-            var interfaceManagerType = Assembly.GetAssembly(typeof(IDalamudTextureWrap))!.DefinedTypes
-                .Single(x => x.FullName == "Dalamud.Interface.Internal.InterfaceManager");
-
-            var serviceInterfaceManagerType = serviceGenericType.MakeGenericType(interfaceManagerType);
-            this.interfaceManager = serviceInterfaceManagerType.GetMethod("Get")!.Invoke(null, null)!;
-            this.fontGammaProperty = interfaceManagerType
-                .GetProperty("FontGamma", BindingFlags.Public | BindingFlags.Instance)!;
 
             this.Clear(false);
         } catch {
@@ -104,42 +82,23 @@ public sealed class DynamicFontAtlas : IDisposable {
     /// </summary>
     ~DynamicFontAtlas() => this.ReleaseUnmanagedResources();
 
-    /// <summary>
-    /// Gets a value indicating whether it is disposed.
-    /// </summary>
-    public bool IsDisposed { get; private set; }
-
-    /// <summary>
-    /// Gets the wrapped <see cref="ImFontAtlasPtr"/>.
-    /// </summary>
+    /// <inheritdoc/>
     public unsafe ImFontAtlasPtr AtlasPtr => new(this.pAtlas);
 
-    /// <summary>
-    /// Gets or sets the fallback font. Once set, until a call to <see cref="Clear"/>, the changes may not apply.
-    /// </summary>
-    public FontIdent? FallbackFontIdent {
-        get => this.fallbackFontIdent;
-        set {
-            if (this.fallbackFontIdent == value)
-                return;
+    /// <inheritdoc/>
+    public FontChain FallbackFontChain { get; set; }
 
-            this.fallbackFontIdent = value;
-            if (value is not null) {
-                this.fontLock.EnterReadLock();
-                try {
-                    foreach (var f in this.fontPtrToFont.Values)
-                        f.FallbackFontChanged();
-                } finally {
-                    this.fontLock.ExitReadLock();
-                }
-            }
-        }
-    }
+    /// <inheritdoc/>
+    public ConcurrentDictionary<string, Task<byte[]>> FontDataBytes { get; } = new();
 
-    /// <summary>
-    /// Gets the dictionary containing callbacks for opening streams.
-    /// </summary>
-    public ConcurrentDictionary<string, byte[]> FontDataBytes { get; } = new();
+    /// <inheritdoc/>
+    public Func<float> ScaleGetter { get; set; } = () => 1f;
+
+    /// <inheritdoc/>
+    public Func<float> GammaGetter { get; set; } = () => 1.4f;
+
+    /// <inheritdoc/>
+    public bool GammaChangeShouldClear { get; set; }
 
     /// <summary>
     /// Gets the cache associated.
@@ -182,11 +141,6 @@ public sealed class DynamicFontAtlas : IDisposable {
     internal byte[] GammaMappingTable { get; } = new byte[256];
 
     /// <summary>
-    /// Gets the gamma level.
-    /// </summary>
-    private float GammaLevel => (float)this.fontGammaProperty.GetValue(this.interfaceManager)!;
-
-    /// <summary>
     /// Gets the reasons why <see cref="FontChain"/>s have failed to load.
     /// </summary>
     private IReadOnlyDictionary<FontChain, Exception> FailedChains => this.failedChains;
@@ -195,19 +149,14 @@ public sealed class DynamicFontAtlas : IDisposable {
     /// Gets the reasons why <see cref="FontIdent"/>s have failed to load.
     /// </summary>
     private IReadOnlyDictionary<(FontIdent Ident, int SizePx), Exception> FailedIdents => this.failedIdents;
-
-
-    /// <summary>
-    /// Clears all the loaded fonts from the atlas.
-    /// </summary>
+    
+    /// <inheritdoc/>
     public void Clear() {
         this.Clear(false);
         this.ClearLoadErrorHistory();
     }
 
-    /// <summary>
-    /// Reset recorded font load errors, so that on next access, font will be attempted for load again.
-    /// </summary>
+    /// <inheritdoc/>
     public void ClearLoadErrorHistory() {
         this.failedChains.Clear();
         this.failedIdents.Clear();
@@ -215,31 +164,22 @@ public sealed class DynamicFontAtlas : IDisposable {
 
     /// <inheritdoc/>
     public void Dispose() {
-        if (this.IsDisposed)
+        if (this.isDisposed)
             return;
 
         this.Clear(true);
         this.disposeStack.Dispose();
         this.ReleaseUnmanagedResources();
 
-        this.IsDisposed = true;
+        this.isDisposed = true;
         GC.SuppressFinalize(this);
     }
 
-    /// <summary>
-    /// Gets the reason why <paramref name="ident"/> of size <paramref name="sizePx"/> failed to load.
-    /// </summary>
-    /// <param name="ident">The font identifier.</param>
-    /// <param name="sizePx">The font size in pixels.</param>
-    /// <returns>Exception, if any.</returns>
+    /// <inheritdoc/>
     public Exception? GetLoadException(in FontIdent ident, float sizePx) =>
         this.GetLoadException(new(new FontChainEntry(ident, sizePx)));
 
-    /// <summary>
-    /// Gets the reason why <paramref name="chain"/> failed to load.
-    /// </summary>
-    /// <param name="chain">The chain to query.</param>
-    /// <returns>Exception, if any.</returns>
+    /// <inheritdoc/>
     public Exception? GetLoadException(in FontChain chain) {
         this.fontLock.EnterReadLock();
         try {
@@ -249,51 +189,16 @@ public sealed class DynamicFontAtlas : IDisposable {
         }
     }
 
-    /// <summary>
-    /// Load the glyphs corresponding to the given chars into currently active ImGui font, if it is managed by this.
-    /// </summary>
-    /// <param name="chars">Chars.</param>
-    public void LoadGlyphs(params char[] chars) => this.LoadGlyphs(ImGui.GetFont(), chars);
-
-    /// <summary>
-    /// Load the glyphs corresponding to the given chars into currently active ImGui font, if it is managed by this.
-    /// </summary>
-    /// <param name="chars">Chars.</param>
-    public void LoadGlyphs(IEnumerable<char> chars) => this.LoadGlyphs(ImGui.GetFont(), chars);
-
-    /// <summary>
-    /// Load the glyphs corresponding to the given chars into <paramref name="font"/>, if it is managed by this.
-    /// </summary>
-    /// <param name="font">Relevant font.</param>
-    /// <param name="chars">Chars.</param>
+    /// <inheritdoc/>
     public void LoadGlyphs(ImFontPtr font, IEnumerable<char> chars) => this.GetFontFromPtr(font)?.LoadGlyphs(chars);
 
-    /// <summary>
-    /// Load the glyphs corresponding to the given chars into currently active ImGui font, if it is managed by this.
-    /// </summary>
-    /// <param name="ranges">Ranges.</param>
-    public void LoadGlyphs(params UnicodeRange[] ranges) => this.LoadGlyphs(ImGui.GetFont(), ranges);
-
-    /// <summary>
-    /// Load the glyphs corresponding to the given chars into currently active ImGui font, if it is managed by this.
-    /// </summary>
-    /// <param name="ranges">Ranges.</param>
-    public void LoadGlyphs(IEnumerable<UnicodeRange> ranges) => this.LoadGlyphs(ImGui.GetFont(), ranges);
-
-    /// <summary>
-    /// Load the glyphs corresponding to the given chars into <paramref name="font"/>, if it is managed by this.
-    /// </summary>
-    /// <param name="font">Relevant font.</param>
-    /// <param name="ranges">Ranges.</param>
+    /// <inheritdoc/>
     public void LoadGlyphs(ImFontPtr font, IEnumerable<UnicodeRange> ranges) =>
         this.GetFontFromPtr(font)?.LoadGlyphs(ranges);
 
-    /// <summary>
-    /// Suppress uploading updated texture onto GPU for the scope.
-    /// </summary>
-    /// <returns>An <see cref="IDisposable"/> that will make it update the texture on dispose.</returns>
+    /// <inheritdoc/>
     public IDisposable? SuppressTextureUpdatesScoped() {
-        if (this.IsDisposed)
+        if (this.isDisposed)
             return null;
 
         this.suppressTextureUpdateCounter++;
@@ -301,30 +206,17 @@ public sealed class DynamicFontAtlas : IDisposable {
             () =>
             {
                 if (--this.suppressTextureUpdateCounter == 0)
-                    this.UpdateTextures();
+                    this.UpdateTextures(true);
             });
     }
 
-    /// <summary>
-    /// Fetch a font, and if it succeeds, push it onto the stack.
-    /// </summary>
-    /// <param name="ident">Font identifier.</param>
-    /// <param name="sizePx">Font size in pixels.</param>
-    /// <param name="waitForLoad">Wait for the font to be loaded.</param>
-    /// <returns>An <see cref="IDisposable"/> that will make it pop the font on dispose.</returns>
-    /// <remarks>It will return null on failure, and exception will be stored in <see cref="FailedIdents"/>.</remarks>
+    /// <inheritdoc/>
     public IDisposable? PushFontScoped(in FontIdent ident, float sizePx, bool waitForLoad = false) =>
         this.PushFontScoped(new(new FontChainEntry(ident, sizePx)), waitForLoad);
 
-    /// <summary>
-    /// Fetch a font, and if it succeeds, push it onto the stack.
-    /// </summary>
-    /// <param name="chain">Font chain.</param>
-    /// <param name="waitForLoad">Wait for the font to be loaded.</param>
-    /// <returns>An <see cref="IDisposable"/> that will make it pop the font on dispose.</returns>
-    /// <remarks>It will return null on failure, and exception will be stored in <see cref="FailedChains"/>.</remarks>
+    /// <inheritdoc/>
     public IDisposable? PushFontScoped(in FontChain chain, bool waitForLoad = false) {
-        if (this.IsDisposed)
+        if (this.isDisposed)
             return null;
 
         this.fontLock.EnterReadLock();
@@ -336,7 +228,7 @@ public sealed class DynamicFontAtlas : IDisposable {
         }
 
         try {
-            var fontTask = this.GetFontTask(chain);
+            var fontTask = this.GetFontTask(chain, this.ScaleGetter());
             if (waitForLoad)
                 fontTask.Wait();
 
@@ -354,28 +246,23 @@ public sealed class DynamicFontAtlas : IDisposable {
             {
                 ImGui.PopFont();
                 if (--this.suppressTextureUpdateCounter == 0)
-                    this.UpdateTextures();
+                    this.UpdateTextures(true);
             });
     }
 
-    /// <summary>
-    /// Upload updated textures onto GPU, if not suppressed.
-    /// </summary>
-    public void UpdateTextures() {
-        if (this.suppressTextureUpdateCounter > 0)
+    /// <inheritdoc/>
+    public void UpdateTextures(bool forceUpdate) {
+        if (this.suppressTextureUpdateCounter > 0 && !forceUpdate)
             return;
 
         this.fontLock.EnterReadLock();
         try {
-            foreach (var x in this.TextureWraps.OfType<DynamicFontAtlasTextureWrap>())
+            foreach (var x in this.TextureWraps.OfType<RectpackingTextureWrap>())
                 x.ApplyChanges();
         } finally {
             this.fontLock.ExitReadLock();
         }
     }
-
-    private async Task<DynamicFont?> GetFallbackFontTask(int sizePx) =>
-        this.fallbackFontIdent is not { } f ? null : await this.GetFontTask(f, sizePx);
 
     /// <summary>
     /// Get the font wrapper. Fallback fonts are not applicable.
@@ -384,7 +271,7 @@ public sealed class DynamicFontAtlas : IDisposable {
     /// <param name="sizePx">Size in pixels. Note that it will be rounded to nearest integers.</param>
     /// <returns>Found font wrapper.</returns>
     internal Task<DynamicFont> GetFontTask(in FontIdent ident, int sizePx) {
-        if (this.IsDisposed)
+        if (this.isDisposed)
             throw new ObjectDisposedException(nameof(DynamicFontAtlas));
 
         this.ProcessGammaChanges();
@@ -426,14 +313,12 @@ public sealed class DynamicFontAtlas : IDisposable {
                         const string filename = "font{}.tex";
 
                         var fdtPath = gfs.FamilyAndSize.GetFdtPath();
-                        var fdt = this.Cache.Get(fdtPath,
-                            () => new FdtReader(this.dataManager.GetFile(fdtPath)!.Data));
+                        var fdtData = await this.gameFileFetcher(fdtPath);
+                        var fdt = this.Cache.Get(fdtPath, () => new FdtReader(fdtData));
 
                         var numExpectedTex = fdt.Glyphs.Max(x => x.TextureFileIndex) + 1;
                         if (!this.gameFontTextures.TryGetValue(filename, out var textureIndices)
                             || textureIndices.Length < numExpectedTex) {
-                            this.UpdateTextures();
-
                             var newTextureWraps = new IDalamudTextureWrap?[numExpectedTex];
                             var newTextureIndices = new int[numExpectedTex];
                             await using (var errorDispose = new DisposeStack()) {
@@ -450,12 +335,10 @@ public sealed class DynamicFontAtlas : IDisposable {
                                     }
 
                                     var texPath = $"common/font/font{1 + i}.tex";
+                                    var texData = await this.gameFileFetcher(fdtPath);
                                     var wrap = new CachedDalamudTextureWrap(this.Cache.GetScoped(
                                         texPath,
-                                        () => this.textureProvider.GetTexture(this.Cache.Get(
-                                            texPath,
-                                            () => this.dataManager.GetFile<TexFile>(texPath)
-                                                ?? throw new FileNotFoundException()))));
+                                        () => ImmutableTextureWrap.FromTexBytes(this.device, texData)));
 
                                     newTextureWraps[i] = errorDispose.Add(wrap);
                                     newTextureIndices[i] = this.TextureWraps.Count + addCounter++;
@@ -513,14 +396,14 @@ public sealed class DynamicFontAtlas : IDisposable {
                                 _ => throw new NotSupportedException(),
                             });
 
-                        if (!this.FontDataBytes.TryGetValue(path, out var data))
-                            this.FontDataBytes[path] = data = File.ReadAllBytes(path);
-
+                        if (!this.FontDataBytes.TryGetValue(path, out var dataTask))
+                            this.FontDataBytes[path] = dataTask = File.ReadAllBytesAsync(path);
+                        
                         return DirectWriteDynamicFont.FromMemory(
                             this,
                             null,
                             string.Empty,
-                            data,
+                            await dataTask.AsStarted(),
                             0,
                             sizePx,
                             identCopy);
@@ -536,7 +419,7 @@ public sealed class DynamicFontAtlas : IDisposable {
                         return DirectWriteDynamicFont.FromMemory(this,
                             null,
                             name,
-                            this.FontDataBytes[name],
+                            await this.FontDataBytes[name].AsStarted(),
                             index,
                             sizePx,
                             null);
@@ -577,9 +460,10 @@ public sealed class DynamicFontAtlas : IDisposable {
     /// Get the font wrapper.
     /// </summary>
     /// <param name="chain">Font chain.</param>
+    /// <param name="scale">Scale to apply to all font idents.</param>
     /// <returns>Found font wrapper.</returns>
-    internal Task<DynamicFont> GetFontTask(in FontChain chain) {
-        if (this.IsDisposed)
+    internal Task<DynamicFont> GetFontTask(in FontChain chain, float scale) {
+        if (this.isDisposed)
             throw new ObjectDisposedException(nameof(DynamicFontAtlas));
 
         if (!(chain.LineHeight > 0))
@@ -599,25 +483,26 @@ public sealed class DynamicFontAtlas : IDisposable {
 
             this.ProcessGammaChanges();
 
-            var scale = ImGuiHelpers.GlobalScale;
             if (this.fontChains.TryGetValue((chain, scale), out var fontTask))
                 return fontTask;
 
             var chainCopy = chain;
+            var fallbackChain = this.FallbackFontChain;
+
             this.fontLock.EnterWriteLock();
             writeLockEntered = true;
-            return this.fontChains[(chain, scale)] = Task.Run(async () =>
+            return this.fontChains[(chain, scale)] = Task.Run<DynamicFont>(async () =>
             {
-                DynamicFont font = new ChainedDynamicFont(
-                    this,
-                    await this.GetFallbackFontTask((int)MathF.Round(chainCopy.PrimaryFont.SizePx * scale)),
-                    chainCopy,
-                    await Task.WhenAll(chainCopy.SecondaryFonts
-                        .Prepend(chainCopy.PrimaryFont)
-                        .Select(entry => this.GetFontTask(entry.Ident, (int)MathF.Round(entry.SizePx * scale)))),
-                    scale);
+                var fallbackFont = chainCopy == fallbackChain
+                    ? null
+                    : await this.GetFallbackFontTask((int)MathF.Round(chainCopy.PrimaryFont.SizePx * scale));
 
-                return font;
+                var subfonts = await Task.WhenAll(
+                    chainCopy.SecondaryFonts
+                        .Prepend(chainCopy.PrimaryFont)
+                        .Select(entry => this.GetFontTask(entry.Ident, (int)MathF.Round(entry.SizePx * scale))));
+
+                return new ChainedDynamicFont(this, fallbackFont, chainCopy, subfonts, scale);
             }).ContinueWith(result =>
             {
                 this.fontLock.EnterWriteLock();
@@ -666,9 +551,9 @@ public sealed class DynamicFontAtlas : IDisposable {
         this.fontLock.EnterWriteLock();
         try {
             foreach (var i in Enumerable.Range(0, this.TextureWraps.Count + 1)) {
-                DynamicFontAtlasTextureWrap wrap;
+                RectpackingTextureWrap wrap;
                 if (i < this.TextureWraps.Count) {
-                    if (this.TextureWraps[i] is not DynamicFontAtlasTextureWrap w
+                    if (this.TextureWraps[i] is not RectpackingTextureWrap w
                         || w.UseColor != glyph.Colored)
                         continue;
 
@@ -704,6 +589,13 @@ public sealed class DynamicFontAtlas : IDisposable {
             this.fontLock.ExitWriteLock();
         }
     }
+
+    private async Task<DynamicFont?> GetFallbackFontTask(int sizePx) =>
+        this.FallbackFontChain.IsEmpty
+            ? null
+            : await this.GetFontTask(
+                this.FallbackFontChain,
+                this.ScaleGetter() * (sizePx / this.FallbackFontChain.PrimaryFont.SizePx));
 
     private void AddTextureWhileLocked(IDalamudTextureWrap wrap) {
         this.ImTextures.Add(new() { TexID = wrap.ImGuiHandle });
@@ -762,7 +654,7 @@ public sealed class DynamicFontAtlas : IDisposable {
             Debug.Assert(this.ImTextures.Length == 1);
 
             this.AtlasPtr.GetTexDataAsAlpha8(0, out nint alphaValues, out var width, out var height);
-            var wrap = new DynamicFontAtlasTextureWrap(this.device, width, height, false);
+            var wrap = new RectpackingTextureWrap(this.device, width, height, false);
             fixed (byte* pixels = wrap.Data) {
                 for (var y = 0; y < height; y++) {
                     var sourceRow = new Span<byte>((byte*)alphaValues + (y * width), width);
@@ -810,21 +702,22 @@ public sealed class DynamicFontAtlas : IDisposable {
     }
 
     private unsafe void ReleaseUnmanagedResources() {
-        if (this.IsDisposed) {
+        if (this.isDisposed) {
             ImGuiNative.ImFontAtlas_destroy(this.pAtlas);
-            this.IsDisposed = true;
+            this.isDisposed = true;
         }
     }
 
     private void ProcessGammaChanges() {
-        var gamma = this.GammaLevel;
+        var gamma = this.GammaGetter();
         if (!(Math.Abs(this.lastGamma - gamma) < 0.0001)) {
             var table = this.GammaMappingTable;
             for (var i = 0; i < 256; i++)
                 table[i] = (byte)(MathF.Pow(Math.Clamp(i / 255.0f, 0.0f, 1.0f), 1.0f / gamma) * 255.0f);
 
             this.lastGamma = gamma;
-            this.Clear(false);
+            if (this.GammaChangeShouldClear)
+                this.Clear(false);
         }
     }
 

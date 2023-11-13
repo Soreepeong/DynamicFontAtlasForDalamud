@@ -4,19 +4,9 @@ using System.Linq;
 using System.Threading;
 using DynamicFontAtlasLib.Internal.Utilities;
 
-namespace DynamicFontAtlasLib;
+namespace DynamicFontAtlasLib.Internal;
 
-public interface IDynamicFontAtlasCache : IDisposable {
-    public T Get<T>(object key, Func<T> initializer);
-
-    public ICacheItemReference<T> GetScoped<T>(object key, Func<T> initializer);
-
-    public interface ICacheItemReference<out T> : IDisposable {
-        public T Item { get; }
-    }
-}
-
-public sealed class DynamicFontAtlasCache : IDynamicFontAtlasCache {
+internal sealed class DynamicFontAtlasCache : IDynamicFontAtlasCache {
     private readonly ReaderWriterLockSlim lookupLock = new();
     private readonly Dictionary<Type, Dictionary<object, ItemHolder>> items = new();
 

@@ -65,8 +65,8 @@ public class MainWindow : Window, IDisposable {
 
     private string buffer = "ABCDE abcde 12345 가나다 漢字氣気 あかさたな アカサタナ";
 
-    private DynamicFontAtlas? atlas;
-    private DynamicFontAtlasCache cache = new();
+    private IDynamicFontAtlas? atlas;
+    private IDynamicFontAtlasCache? cache;
     private float fontSize = 14f * 4 / 3;
 
     public MainWindow(Plugin plugin) : base("DynamicFontAtlas Sample") {
@@ -83,7 +83,8 @@ public class MainWindow : Window, IDisposable {
     public void Dispose() {
         this.atlas?.Dispose();
         this.atlas = null;
-        this.cache.Dispose();
+        this.cache?.Dispose();
+        this.cache = null;
     }
 
     public override void Draw() {
@@ -92,14 +93,13 @@ public class MainWindow : Window, IDisposable {
 
             CustomPixelShaderMonkeyPatcher.Patch();
 
-            this.atlas = new(
-                new(((dynamic)this.Plugin.PluginInterface.UiBuilder).Device.NativePointer),
-                this.Plugin.PluginInterface.DalamudAssetDirectory,
-                this.Plugin.DataManager,
-                this.Plugin.TextureProvider,
-                this.cache) {
-                FallbackFontIdent = FontIdent.FromSystem("Gulim"),
-            };
+            this.atlas = DynamicFontAtlasFactory.CreateAtlas(
+                    this.Plugin.PluginInterface,
+                    this.Plugin.DataManager,
+                    this.cache ??= DynamicFontAtlasFactory.CreateCache())
+                .WithBindToDalamudConfiguration();
+
+            this.atlas.FallbackFontChain = new(new FontChainEntry(FontIdent.FromSystem("Gulim"), 12f));
 
             this.systemEntries.Clear();
             this.systemEntries.AddRange(
@@ -110,9 +110,9 @@ public class MainWindow : Window, IDisposable {
 
         if (this.atlas is null) {
             ImGui.SameLine();
-            if (ImGui.Button("Compact Cache")) {
+            if (this.cache is not null && ImGui.Button("Discard Cache")) {
                 this.cache.Dispose();
-                this.cache = new();
+                this.cache = null;
             }
 
             return;

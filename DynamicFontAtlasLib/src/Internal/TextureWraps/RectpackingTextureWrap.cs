@@ -14,7 +14,7 @@ namespace DynamicFontAtlasLib.Internal;
 /// <summary>
 /// A TextureWrap for use from <see cref="DynamicFontAtlas"/>.
 /// </summary>
-internal sealed unsafe class DynamicFontAtlasTextureWrap : IDalamudTextureWrap {
+internal sealed unsafe class RectpackingTextureWrap : IDalamudTextureWrap {
     private readonly DisposeStack waste = new();
     private bool changed;
 
@@ -25,7 +25,7 @@ internal sealed unsafe class DynamicFontAtlasTextureWrap : IDalamudTextureWrap {
     /// <param name="width">Texture width.</param>
     /// <param name="height">Texture height.</param>
     /// <param name="color">Whether to store colored glyphs.</param>
-    public DynamicFontAtlasTextureWrap(
+    public RectpackingTextureWrap(
         Device device,
         int width,
         int height,

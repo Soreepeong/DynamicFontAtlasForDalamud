@@ -65,6 +65,11 @@ public record struct FontChainEntry {
     /// </summary>
     public UnicodeRange[]? Ranges { get; set; }
 
+    /// <summary>
+    /// Gets the value indicating whether this <see cref="FontChainEntry"/> is empty.
+    /// </summary>
+    public bool IsEmpty => this.Ident.IsEmpty || this.SizePx <= 0;
+
     /// <inheritdoc/>
     public override int GetHashCode() =>
         HashCode.Combine(this.Ident.GetHashCode(), this.SizePx, this.LetterSpacing, this.OffsetX, this.OffsetY);

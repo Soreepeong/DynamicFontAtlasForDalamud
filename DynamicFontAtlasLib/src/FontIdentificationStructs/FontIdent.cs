@@ -104,6 +104,17 @@ public record struct FontIdent {
     /// </summary>
     public (string Name, FontVariant Variant)? System { get; set; }
 
+    /// <summary>
+    /// Gets the value indicating whether this <see cref="FontIdent"/> is empty.
+    /// </summary>
+    public bool IsEmpty => this is {
+        BundledFont: BundledFonts.None,
+        Game: GameFontFamily.Undefined,
+        File: null,
+        Memory: null,
+        System: null,
+    };
+
     /// <inheritdoc/>
     public override int GetHashCode() =>
         HashCode.Combine(this.BundledFont, this.Game, this.File, this.Memory, this.System);

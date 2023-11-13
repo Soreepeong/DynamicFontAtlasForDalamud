@@ -112,17 +112,9 @@ internal abstract unsafe class DynamicFont : IDisposable {
     public abstract bool IsFontIdent(in FontIdent ident);
 
     protected bool ApplyFallbackGlyph(char codepoint) {
-        if (this.Atlas.FallbackFontIdent is not { } fi)
-            return false;
-
         if (this.LoadAttemptedGlyphs[codepoint])
             return false;
 
-        if (this.IsFontIdent(fi)) {
-            this.LoadAttemptedGlyphs[codepoint] = true;
-            return false;
-        }
-        
         this.LoadAttemptedGlyphs[codepoint] = true;
         
         //var fallbackFont = this.Atlas.GetFontTask(fi, (int)MathF.Round(this.Font.FontSize));
@@ -146,12 +138,6 @@ internal abstract unsafe class DynamicFont : IDisposable {
         indexedHotData.OccupiedWidth = Math.Max(glyph.AdvanceX, glyph.X1);
 
         return true;
-    }
-
-    internal void FallbackFontChanged() {
-        this.LoadAttemptedGlyphs.SetAll(false);
-        foreach (ref var g in this.Glyphs.AsSpan)
-            this.LoadAttemptedGlyphs[g.Codepoint] = true;
     }
 
     internal void SanityCheck() {

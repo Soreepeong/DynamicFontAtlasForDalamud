@@ -302,7 +302,7 @@ internal class DirectWriteDynamicFont : DynamicFont {
                 glyph.Y0 += this.Font.Ascent;
                 glyph.Y1 += this.Font.Ascent;
 
-                var wrap = (DynamicFontAtlasTextureWrap)this.Atlas.TextureWraps[glyph.TextureIndex];
+                var wrap = (RectpackingTextureWrap)this.Atlas.TextureWraps[glyph.TextureIndex];
                 var u0 = (int)MathF.Round((glyph.U0 % 1) * wrap.Width);
                 var v0 = (int)MathF.Round((glyph.V0 % 1) * wrap.Height);
                 var channel = (int)Math.Floor(glyph.U0) - 1;
@@ -363,7 +363,7 @@ internal class DirectWriteDynamicFont : DynamicFont {
 
             foreach (var i in Enumerable.Range(0, changedTextures.Length)) {
                 if (changedTextures[i])
-                    ((DynamicFontAtlasTextureWrap)this.Atlas.TextureWraps[i]).MarkChanged();
+                    ((RectpackingTextureWrap)this.Atlas.TextureWraps[i]).MarkChanged();
             }
 
             if (changed)
