@@ -1,9 +1,7 @@
 using System.Runtime.InteropServices;
-using DynamicFontAtlasLib.TrueType.CommonStructs;
 
-namespace DynamicFontAtlasLib.TrueType;
+namespace DynamicFontAtlasLib.TrueType.CommonStructs;
 
-#pragma warning disable CS0649
 [StructLayout(LayoutKind.Explicit)]
 public struct TagStruct : IEquatable<TagStruct>, IComparable<TagStruct> {
     [FieldOffset(0)]

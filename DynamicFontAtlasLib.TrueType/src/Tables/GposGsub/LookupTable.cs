@@ -2,7 +2,7 @@ using System.Buffers.Binary;
 using System.Collections;
 using DynamicFontAtlasLib.TrueType.CommonStructs;
 
-namespace DynamicFontAtlasLib.TrueType.GposGsub;
+namespace DynamicFontAtlasLib.TrueType.Tables.GposGsub;
 
 public readonly struct LookupTable : IEnumerable<PointerSpan<byte>> {
     public readonly PointerSpan<byte> Memory;

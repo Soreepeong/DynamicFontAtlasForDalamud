@@ -5,7 +5,6 @@ using DynamicFontAtlasLib.TrueType.CommonStructs;
 
 namespace DynamicFontAtlasLib.TrueType.Files;
 
-#pragma warning disable CS0649
 public struct SfntFile : IReadOnlyDictionary<TagStruct, PointerSpan<byte>> {
     // http://formats.kaitai.io/ttf/ttf.svg
 

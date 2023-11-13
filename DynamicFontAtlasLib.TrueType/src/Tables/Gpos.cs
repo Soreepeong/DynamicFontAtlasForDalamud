@@ -2,7 +2,7 @@
 using System.Collections.Immutable;
 using DynamicFontAtlasLib.TrueType.CommonStructs;
 using DynamicFontAtlasLib.TrueType.Files;
-using DynamicFontAtlasLib.TrueType.GposGsub;
+using DynamicFontAtlasLib.TrueType.Tables.GposGsub;
 
 namespace DynamicFontAtlasLib.TrueType.Tables;
 

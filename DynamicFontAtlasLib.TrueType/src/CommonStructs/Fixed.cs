@@ -1,6 +1,4 @@
-using DynamicFontAtlasLib.TrueType.CommonStructs;
-
-namespace DynamicFontAtlasLib.TrueType;
+namespace DynamicFontAtlasLib.TrueType.CommonStructs;
 
 public struct Fixed : IComparable<Fixed> {
     public ushort Major;

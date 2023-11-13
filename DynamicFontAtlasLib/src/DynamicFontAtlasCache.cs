@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Threading;
 using DynamicFontAtlasLib.Internal.Utilities;
@@ -8,8 +7,6 @@ using DynamicFontAtlasLib.Internal.Utilities;
 namespace DynamicFontAtlasLib;
 
 public interface IDynamicFontAtlasCache : IDisposable {
-    public bool TryGet<T>(object key, [MaybeNullWhen(false)] out T value);
-
     public T Get<T>(object key, Func<T> initializer);
 
     public ICacheItemReference<T> GetScoped<T>(object key, Func<T> initializer);
@@ -26,34 +23,6 @@ public sealed class DynamicFontAtlasCache : IDynamicFontAtlasCache {
     public void Dispose() {
         this.items.Values.SelectMany(x => x.Values).DisposeItems();
         this.items.Clear();
-    }
-
-    public bool TryGet<T>(object key, [MaybeNullWhen(false)] out T value) {
-        ItemHolder? holder;
-        this.lookupLock.EnterReadLock();
-        try {
-            if (!this.items.TryGetValue(typeof(T), out var cached)) {
-                value = default!;
-                return false;
-            }
-
-            if (!cached.TryGetValue(key, out holder)) {
-                value = default!;
-                return false;
-            }
-        } finally {
-            this.lookupLock.ExitReadLock();
-        }
-
-        lock (holder.ValueLock) {
-            if (holder.IsDisposed) {
-                value = default!;
-                return false;
-            }
-
-            value = (T)holder.Value!;
-            return true;
-        }
     }
 
     public T Get<T>(object key, Func<T> initializer) {

@@ -1,6 +1,5 @@
 namespace DynamicFontAtlasLib.TrueType.Enums;
 
-#pragma warning disable CS0649
 public enum WindowsEncodingId : ushort {
     Symbol = 0,
     UnicodeBmp = 1,

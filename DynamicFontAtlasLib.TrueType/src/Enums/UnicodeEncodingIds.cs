@@ -1,6 +1,5 @@
 namespace DynamicFontAtlasLib.TrueType.Enums;
 
-#pragma warning disable CS0649
 public enum UnicodeEncodingId : ushort {
     Unicode_1_0 = 0,  // deprecated
     Unicode_1_1 = 1,  // deprecated

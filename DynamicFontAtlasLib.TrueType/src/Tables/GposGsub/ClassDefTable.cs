@@ -2,9 +2,8 @@
 using System.Diagnostics.Contracts;
 using DynamicFontAtlasLib.TrueType.CommonStructs;
 
-namespace DynamicFontAtlasLib.TrueType;
+namespace DynamicFontAtlasLib.TrueType.Tables.GposGsub;
 
-#pragma warning disable CS0649
 public readonly struct ClassDefTable {
     public readonly PointerSpan<byte> Memory;
 

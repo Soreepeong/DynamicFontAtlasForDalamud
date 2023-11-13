@@ -1,4 +1,4 @@
-namespace DynamicFontAtlasLib.TrueType.GposGsub;
+namespace DynamicFontAtlasLib.TrueType.Tables.GposGsub;
 
 [Flags]
 public enum LookupFlags : byte {

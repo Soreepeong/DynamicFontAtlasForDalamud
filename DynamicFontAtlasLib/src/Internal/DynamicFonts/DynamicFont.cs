@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text.Unicode;
@@ -13,6 +14,10 @@ namespace DynamicFontAtlasLib.Internal.DynamicFonts;
 
 internal abstract unsafe class DynamicFont : IDisposable {
     protected const int FrequentKerningPairsMaxCodepoint = 128;
+    
+    private float lastFallbackHotDataAdvanceX = 0f;
+    private float lastFallbackHotDataOccupiedWidth = 0f;
+    private int lastFallbackHotDataLength = 0;
 
     protected DynamicFont(DynamicFontAtlas atlas, DynamicFont? fallbackFont, BitArray? loadAttemptedGlyphs) {
         this.Atlas = atlas;
@@ -179,6 +184,7 @@ internal abstract unsafe class DynamicFont : IDisposable {
     /// Need to fix our custom ImGui, so that imgui_widgets.cpp:3656 stops thinking
     /// Codepoint &lt; FallbackHotData.size always means it's not fallback char.
     /// </remarks>
+    [SuppressMessage("ReSharper", "CompareOfFloatsByEqualityOperator")]
     protected void UpdateReferencesToVectorItems() {
         this.Font.FallbackGlyph = (ImFontGlyph*)this.FindLoadedGlyphNoFallback(this.Font.FallbackChar);
         this.Font.FallbackHotData =
@@ -187,12 +193,21 @@ internal abstract unsafe class DynamicFont : IDisposable {
                 : (ImFontGlyphHotData*)(this.IndexedHotData.Data + this.Font.FallbackChar);
 
         var fallbackHotData = this.IndexedHotData[this.Font.FallbackChar];
-        foreach (var codepoint in Enumerable.Range(0, this.IndexedHotData.Length)) {
+        if (fallbackHotData.AdvanceX != this.lastFallbackHotDataAdvanceX ||
+            fallbackHotData.OccupiedWidth != this.lastFallbackHotDataOccupiedWidth) {
+            this.lastFallbackHotDataLength = 0;
+        }
+
+        for (var codepoint = this.lastFallbackHotDataLength; codepoint < this.IndexedHotData.Length; codepoint++) {
             if (this.IndexLookup[codepoint] == ushort.MaxValue) {
                 this.IndexedHotData[codepoint].AdvanceX = fallbackHotData.AdvanceX;
                 this.IndexedHotData[codepoint].OccupiedWidth = fallbackHotData.OccupiedWidth;
             }
         }
+
+        this.lastFallbackHotDataAdvanceX = fallbackHotData.AdvanceX;
+        this.lastFallbackHotDataOccupiedWidth = fallbackHotData.OccupiedWidth;
+        this.lastFallbackHotDataLength = this.IndexedHotData.Length;
     }
 
     protected void Mark4KPageUsed(in ImFontGlyphReal glyph) {

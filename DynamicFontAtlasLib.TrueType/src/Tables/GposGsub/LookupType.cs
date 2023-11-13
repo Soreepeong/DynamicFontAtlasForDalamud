@@ -1,4 +1,4 @@
-namespace DynamicFontAtlasLib.TrueType.GposGsub;
+namespace DynamicFontAtlasLib.TrueType.Tables.GposGsub;
 
 public enum LookupType : ushort {
     SingleAdjustment = 1,

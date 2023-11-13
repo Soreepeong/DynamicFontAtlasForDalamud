@@ -1,9 +1,8 @@
 using System.Buffers.Binary;
 using DynamicFontAtlasLib.TrueType.CommonStructs;
 
-namespace DynamicFontAtlasLib.TrueType;
+namespace DynamicFontAtlasLib.TrueType.Tables.GposGsub;
 
-#pragma warning disable CS0649
 public readonly struct CoverageTable {
     public readonly PointerSpan<byte> Memory;
 
