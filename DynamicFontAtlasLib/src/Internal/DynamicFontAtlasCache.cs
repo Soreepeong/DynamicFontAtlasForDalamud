@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
+using System.Threading.Tasks;
 using DynamicFontAtlasLib.Internal.Utilities;
 
 namespace DynamicFontAtlasLib.Internal;
@@ -16,6 +17,46 @@ internal sealed class DynamicFontAtlasCache : IDynamicFontAtlasCache {
     }
 
     public T Get<T>(object key, Func<T> initializer) {
+        var r = this.GetAndAddRef(key, initializer);
+        try {
+            return (T)r.Value.Result!;
+        } finally {
+            r.DecRef();
+        }
+    }
+
+    public async Task<T> GetAsync<T>(object key, Func<Task<T>> initializer) {
+        var r = await this.GetAndAddRefAsync(key, initializer);
+        try {
+            return (T)(await r.Value)!;
+        } finally {
+            r.DecRef();
+        }
+    }
+
+    public IDynamicFontAtlasCache.ICacheItemReference<T> GetScoped<T>(object key, Func<T> initializer) {
+        var r = this.GetAndAddRef(key, initializer);
+        try {
+            return r.NewRefWithoutAddRef<T>();
+        } catch {
+            r.DecRef();
+            throw;
+        }
+    }
+
+    public async Task<IDynamicFontAtlasCache.ICacheItemReference<T>> GetScopedAsync<T>(
+        object key,
+        Func<Task<T>> initializer) {
+        var r = await this.GetAndAddRefAsync(key, initializer);
+        try {
+            return r.NewRefWithoutAddRef<T>();
+        } catch {
+            r.DecRef();
+            throw;
+        }
+    }
+
+    private ItemHolder GetAndAddRef<T>(object key, Func<T> initializer) {
         this.lookupLock.EnterUpgradeableReadLock();
         var shouldExitUpgradableReadLock = true;
         try {
@@ -24,8 +65,10 @@ internal sealed class DynamicFontAtlasCache : IDynamicFontAtlasCache {
 
             if (cached.TryGetValue(key, out var holder)) {
                 lock (holder.ValueLock) {
-                    if (!holder.IsDisposed)
-                        return (T)holder.Value!;
+                    if (!holder.IsDisposed) {
+                        holder.AddRef();
+                        return holder;
+                    }
                 }
             }
 
@@ -38,9 +81,8 @@ internal sealed class DynamicFontAtlasCache : IDynamicFontAtlasCache {
                 shouldExitUpgradableReadLock = false;
 
                 try {
-                    var v = initializer();
-                    holder.Value = v;
-                    return v;
+                    holder.Value = Task.FromResult<object?>(initializer());
+                    return holder;
                 } catch {
                     this.lookupLock.EnterWriteLock();
                     cached.Remove(key);
@@ -54,7 +96,7 @@ internal sealed class DynamicFontAtlasCache : IDynamicFontAtlasCache {
         }
     }
 
-    public IDynamicFontAtlasCache.ICacheItemReference<T> GetScoped<T>(object key, Func<T> initializer) {
+    private Task<ItemHolder> GetAndAddRefAsync<T>(object key, Func<Task<T>> initializer) {
         this.lookupLock.EnterUpgradeableReadLock();
         var shouldExitUpgradableReadLock = true;
         try {
@@ -63,8 +105,10 @@ internal sealed class DynamicFontAtlasCache : IDynamicFontAtlasCache {
 
             if (cached.TryGetValue(key, out var holder)) {
                 lock (holder.ValueLock) {
-                    if (!holder.IsDisposed)
-                        return holder.AddRefWhileLocked<T>();
+                    if (!holder.IsDisposed) {
+                        holder.AddRef();
+                        return Task.FromResult(holder);
+                    }
                 }
             }
 
@@ -77,8 +121,8 @@ internal sealed class DynamicFontAtlasCache : IDynamicFontAtlasCache {
                 shouldExitUpgradableReadLock = false;
 
                 try {
-                    holder.Value = initializer();
-                    return holder.AddRefWhileLocked<T>();
+                    holder.Value = initializer().ContinueWith(r => (object?)r.Result);
+                    return Task.FromResult(holder);
                 } catch {
                     this.lookupLock.EnterWriteLock();
                     cached.Remove(key);
@@ -97,38 +141,43 @@ internal sealed class DynamicFontAtlasCache : IDynamicFontAtlasCache {
 
         public bool IsDisposed => this.RefCount < 0;
 
-        public object? Value { get; set; }
+        public Task<object?> Value { get; set; } = Task.FromResult<object?>(null);
 
-        public int RefCount { get; set; }
+        public int RefCount { get; private set; } = 1;
 
         public void Dispose() {
-            IDisposable? value;
             lock (this.ValueLock) {
                 if (this.RefCount > 0)
                     throw new InvalidOperationException("Cannot dispose when RefCount != 0");
 
-                value = this.Value as IDisposable;
+                this.Value.ContinueWith(r => (r as IDisposable).Dispose());
                 this.Value = null!;
                 this.RefCount = -1;
             }
-
-            value?.Dispose();
         }
 
-        public IDynamicFontAtlasCache.ICacheItemReference<T> AddRefWhileLocked<T>() {
-            if (this.Value is not T) {
+        public IDynamicFontAtlasCache.ICacheItemReference<T> NewRefWithoutAddRef<T>() {
+            if (this.Value.Result is not T) {
                 if (this.Value is not null)
-                    throw new InvalidCastException($"Requested {typeof(T)}, contained {this.Value?.GetType()}");
+                    throw new InvalidCastException($"Requested {typeof(T)}, contained {this.Value.Result?.GetType()}");
 
                 if (this.IsDisposed)
                     throw new ObjectDisposedException(nameof(ItemHolder));
             }
 
-            this.RefCount++;
             return new Reference<T>(this);
         }
 
-        private void DecRef() {
+        public void AddRef() {
+            lock (this.ValueLock) {
+                if (this.IsDisposed)
+                    throw new ObjectDisposedException(nameof(ItemHolder));
+
+                ++this.RefCount;
+            }
+        }
+
+        public void DecRef() {
             lock (this.ValueLock) {
                 if (this.IsDisposed)
                     throw new ObjectDisposedException(nameof(ItemHolder));
@@ -147,7 +196,7 @@ internal sealed class DynamicFontAtlasCache : IDynamicFontAtlasCache {
             public T Item =>
                 (T)(this.holder
                     ?? throw new ObjectDisposedException(nameof(IDynamicFontAtlasCache.ICacheItemReference<T>)))
-                .Value!;
+                .Value.Result!;
 
             public void Dispose() {
                 this.holder?.DecRef();

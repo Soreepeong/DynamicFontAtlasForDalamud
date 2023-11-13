@@ -64,7 +64,7 @@ internal sealed unsafe class ImmutableTextureWrap : IDalamudTextureWrap {
             : ((header.Width * bpp) + 7) / 8;
         
         fixed (void* pData = dataSpan)
-            return new(device, (nint)pData, header.Width, header.Height, pitch, (Format)dxgiFormat);
+            return new(device, (nint)pData, header.Width, pitch, header.Height, (Format)dxgiFormat);
     }
 
     public void Dispose() => this.shaderResourceView.Dispose();

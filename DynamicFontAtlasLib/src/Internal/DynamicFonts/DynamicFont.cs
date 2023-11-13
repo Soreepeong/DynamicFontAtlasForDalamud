@@ -23,6 +23,7 @@ internal abstract unsafe class DynamicFont : IDisposable {
         this.Atlas = atlas;
         this.FallbackFont = fallbackFont;
         this.FontNative = ImGuiNative.ImFont_ImFont();
+        this.FontNative->ContainerAtlas = atlas.AtlasPtr.NativePtr;
         this.IndexedHotData = new(&this.FontNative->IndexedHotData, null);
         this.FrequentKerningPairs = new(&this.FontNative->FrequentKerningPairs, null);
         this.IndexLookup = new(&this.FontNative->IndexLookup, null);
