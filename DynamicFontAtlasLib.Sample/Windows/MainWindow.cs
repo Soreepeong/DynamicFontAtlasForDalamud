@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text.Unicode;
 using Dalamud.Interface;
 using Dalamud.Interface.GameFonts;
+using Dalamud.Interface.Utility;
 using Dalamud.Interface.Windowing;
 using DynamicFontAtlasLib;
 using DynamicFontAtlasLib.FontIdentificationStructs;
@@ -24,7 +25,8 @@ public class MainWindow : Window, IDisposable {
     private readonly List<FontChainEntry> gameEntries = Enum.GetValues<GameFontFamilyAndSize>()
         .Where(x => x != GameFontFamilyAndSize.Undefined)
         .Select(x => new GameFontStyle(x))
-        .Select(x => new FontChainEntry(FontIdent.From(x.Family), x.FamilyAndSize == GameFontFamilyAndSize.TrumpGothic68 ? 68f * 4 / 3 : x.SizePx))
+        .Select(x => new FontChainEntry(FontIdent.From(x.Family),
+            x.FamilyAndSize == GameFontFamilyAndSize.TrumpGothic68 ? 68f * 4 / 3 : x.SizePx))
         .ToList();
 
     private readonly FontChain exampleChain = new(
@@ -106,8 +108,15 @@ public class MainWindow : Window, IDisposable {
                     .OrderBy(x => x.System!.Value.Name));
         }
 
-        if (this.atlas is null)
+        if (this.atlas is null) {
+            ImGui.SameLine();
+            if (ImGui.Button("Compact Cache")) {
+                this.cache.Dispose();
+                this.cache = new();
+            }
+
             return;
+        }
 
         ImGui.SameLine();
         if (ImGui.Button("Dispose")) {
@@ -173,8 +182,10 @@ public class MainWindow : Window, IDisposable {
         }
 
         if (ImGui.CollapsingHeader("System fonts")) {
-            this.entryClipper.Begin(this.systemEntries.Count, this.fontSize + (ImGui.GetStyle().FramePadding.Y * 2));
+            var lineHeight = this.fontSize * ImGuiHelpers.GlobalScale;
+            this.entryClipper.Begin(this.systemEntries.Count, lineHeight);
             while (this.entryClipper.Step()) {
+                var y = ImGui.GetCursorPosY();
                 for (var i = this.entryClipper.DisplayStart; i < this.entryClipper.DisplayEnd; i++) {
                     if (i < 0)
                         continue;
@@ -183,9 +194,10 @@ public class MainWindow : Window, IDisposable {
                     using (this.atlas.PushFontScoped(entry, this.fontSize)) {
                         var s = $"{entry}: {this.buffer}";
                         this.atlas.LoadGlyphs(s);
-
                         ImGui.TextUnformatted(s);
                     }
+
+                    ImGui.SetCursorPosY(y += lineHeight);
                 }
             }
 

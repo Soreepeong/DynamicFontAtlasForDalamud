@@ -369,10 +369,6 @@ public sealed class DynamicFontAtlas : IDisposable {
         try {
             foreach (var x in this.TextureWraps.OfType<DynamicFontAtlasTextureWrap>())
                 x.ApplyChanges();
-            // this.TextureWraps
-            //     .OfType<DynamicFontAtlasTextureWrap>()
-            //     .AsParallel()
-            //     .ForAll(x => x.ApplyChanges());
         } finally {
             this.fontLock.ExitReadLock();
         }
