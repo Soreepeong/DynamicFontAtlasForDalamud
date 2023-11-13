@@ -4,12 +4,14 @@ using System.Collections.Generic;
 using System.Text.Unicode;
 using System.Threading.Tasks;
 using DynamicFontAtlasLib.FontIdentificationStructs;
-using DynamicFontAtlasLib.Internal;
 using ImGuiNET;
-using Lumina.Data;
 
 namespace DynamicFontAtlasLib;
 
+/// <summary>
+/// A wrapper for <see cref="ImFontAtlas"/> which supports adding glyphs without having to rebuild from scratch on every change.
+/// </summary>
+/// <remarks>Any function marked <b>NOT thread safe</b> cannot be run concurrently with itself or other functions.</remarks>
 public interface IDynamicFontAtlas : IDisposable {
     /// <summary>
     /// Gets the wrapped <see cref="ImFontAtlasPtr"/>.
@@ -47,11 +49,13 @@ public interface IDynamicFontAtlas : IDisposable {
     /// <summary>
     /// Clears all the loaded fonts from the atlas.
     /// </summary>
+    /// <remarks>This function is <b>NOT thread safe</b>.</remarks>
     void Clear();
 
     /// <summary>
     /// Reset recorded font load errors, so that on next access, font will be attempted for load again.
     /// </summary>
+    /// <remarks>This function is thread safe.</remarks>
     void ClearLoadErrorHistory();
 
     /// <summary>
@@ -60,13 +64,16 @@ public interface IDynamicFontAtlas : IDisposable {
     /// <param name="ident">The font identifier.</param>
     /// <param name="sizePx">The font size in pixels.</param>
     /// <returns>Exception, if any.</returns>
-    Exception? GetLoadException(in FontIdent ident, float sizePx);
+    /// <remarks>This function is thread safe.</remarks>
+    Exception? GetLoadException(in FontIdent ident, float sizePx) =>
+        this.GetLoadException(new(new FontChainEntry(ident, sizePx)));
 
     /// <summary>
     /// Gets the reason why <paramref name="chain"/> failed to load.
     /// </summary>
     /// <param name="chain">The chain to query.</param>
     /// <returns>Exception, if any.</returns>
+    /// <remarks>This function is thread safe.</remarks>
     Exception? GetLoadException(in FontChain chain);
 
     /// <summary>
@@ -111,6 +118,7 @@ public interface IDynamicFontAtlas : IDisposable {
     /// Suppress uploading updated texture onto GPU for the scope.
     /// </summary>
     /// <returns>An <see cref="IDisposable"/> that will make it update the texture on dispose.</returns>
+    /// <remarks>This function is <b>NOT thread safe</b>.</remarks>
     IDisposable? SuppressTextureUpdatesScoped();
 
     /// <summary>
@@ -119,21 +127,23 @@ public interface IDynamicFontAtlas : IDisposable {
     /// <param name="ident">Font identifier.</param>
     /// <param name="sizePx">Font size in pixels.</param>
     /// <param name="waitForLoad">Wait for the font to be loaded.</param>
-    /// <returns>An <see cref="IDisposable"/> that will make it pop the font on dispose.</returns>
-    /// <remarks>It will return null on failure, and exception will be stored in <see cref="DynamicFontAtlas.FailedIdents"/>.</remarks>
-    IDisposable? PushFontScoped(in FontIdent ident, float sizePx, bool waitForLoad = false);
+    /// <returns>An <see cref="IDisposable"/> that will make it pop the font on dispose if font is loaded; otherwise, null.</returns>
+    /// <remarks>This function is <b>NOT thread safe</b>.</remarks>
+    IDisposable? PushFontScoped(in FontIdent ident, float sizePx, bool waitForLoad = false) =>
+        this.PushFontScoped(new(new FontChainEntry(ident, sizePx)), waitForLoad);
 
     /// <summary>
     /// Fetch a font, and if it succeeds, push it onto the stack.
     /// </summary>
     /// <param name="chain">Font chain.</param>
     /// <param name="waitForLoad">Wait for the font to be loaded.</param>
-    /// <returns>An <see cref="IDisposable"/> that will make it pop the font on dispose.</returns>
-    /// <remarks>It will return null on failure, and exception will be stored in <see cref="DynamicFontAtlas.FailedChains"/>.</remarks>
+    /// <returns>An <see cref="IDisposable"/> that will make it pop the font on dispose if font is loaded; otherwise, null.</returns>
+    /// <remarks>This function is <b>NOT thread safe</b>.</remarks>
     IDisposable? PushFontScoped(in FontChain chain, bool waitForLoad = false);
 
     /// <summary>
     /// Upload updated textures onto GPU, if not suppressed.
     /// </summary>
+    /// <remarks>This function is thread safe.</remarks>
     void UpdateTextures(bool forceUpdate);
 }

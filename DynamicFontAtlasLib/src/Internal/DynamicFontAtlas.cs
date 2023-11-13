@@ -176,10 +176,6 @@ internal sealed class DynamicFontAtlas : IDynamicFontAtlas {
     }
 
     /// <inheritdoc/>
-    public Exception? GetLoadException(in FontIdent ident, float sizePx) =>
-        this.GetLoadException(new(new FontChainEntry(ident, sizePx)));
-
-    /// <inheritdoc/>
     public Exception? GetLoadException(in FontChain chain) {
         this.fontLock.EnterReadLock();
         try {
@@ -211,10 +207,6 @@ internal sealed class DynamicFontAtlas : IDynamicFontAtlas {
                     this.UpdateTextures(true);
             });
     }
-
-    /// <inheritdoc/>
-    public IDisposable? PushFontScoped(in FontIdent ident, float sizePx, bool waitForLoad = false) =>
-        this.PushFontScoped(new(new FontChainEntry(ident, sizePx)), waitForLoad);
 
     /// <inheritdoc/>
     public IDisposable? PushFontScoped(in FontChain chain, bool waitForLoad = false) {
@@ -249,12 +241,12 @@ internal sealed class DynamicFontAtlas : IDynamicFontAtlas {
         if (this.suppressTextureUpdateCounter > 0 && !forceUpdate)
             return;
 
-        this.fontLock.EnterReadLock();
+        this.fontLock.EnterWriteLock();
         try {
             foreach (var x in this.TextureWraps.OfType<RectpackingTextureWrap>())
                 x.ApplyChanges();
         } finally {
-            this.fontLock.ExitReadLock();
+            this.fontLock.ExitWriteLock();
         }
     }
 
