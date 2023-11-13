@@ -38,7 +38,7 @@ public struct FontChain : IEquatable<FontChain> {
 
             this.SecondaryFontsNullable = r.ToImmutableList();
         } else {
-            this.SecondaryFontsNullable = ImmutableList<FontChainEntry>.Empty;
+            this.SecondaryFontsNullable = null;
         }
 
         this.LineHeight = 1f;
@@ -50,7 +50,7 @@ public struct FontChain : IEquatable<FontChain> {
     /// <param name="font">Font to include.</param>
     public FontChain(FontChainEntry font) : this() {
         this.PrimaryFont = font;
-        this.SecondaryFontsNullable = ImmutableList<FontChainEntry>.Empty;
+        this.SecondaryFontsNullable = null;
     }
 
     /// <summary>

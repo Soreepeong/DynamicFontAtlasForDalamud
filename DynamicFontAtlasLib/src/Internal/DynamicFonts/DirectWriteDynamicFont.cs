@@ -35,10 +35,11 @@ internal class DirectWriteDynamicFont : DynamicFont {
     private DirectWriteDynamicFont(
         FontIdent ident,
         DynamicFontAtlas atlas,
+        DynamicFont? fallbackFont,
         Factory factory,
         Font font,
         float sizePx)
-        : base(atlas, null) {
+        : base(atlas, fallbackFont, null) {
         try {
             this.factory = this.disposeStack.Add(factory.QueryInterface<Factory>());
             this.factory2 = this.disposeStack.Add(factory.QueryInterfaceOrNull<Factory2>());
@@ -85,6 +86,7 @@ internal class DirectWriteDynamicFont : DynamicFont {
 
     public static DirectWriteDynamicFont FromSystem(
         DynamicFontAtlas atlas,
+        DynamicFont? fallbackFont,
         string name,
         FontVariant variant,
         float sizePx) {
@@ -95,11 +97,12 @@ internal class DirectWriteDynamicFont : DynamicFont {
 
         using var fontFamily = collection.GetFontFamily(fontFamilyIndex);
         using var font = fontFamily.GetFirstMatchingFont(variant.Weight, variant.Stretch, variant.Style);
-        return new(FontIdent.FromSystem(name, variant), atlas, factory, font, sizePx);
+        return new(FontIdent.FromSystem(name, variant), atlas, fallbackFont, factory, font, sizePx);
     }
 
     public static DirectWriteDynamicFont FromFile(
         DynamicFontAtlas atlas,
+        DynamicFont? fallbackFont,
         string path,
         int fontIndex,
         float sizePx) {
@@ -112,7 +115,7 @@ internal class DirectWriteDynamicFont : DynamicFont {
                 using var font = family.GetFont(j);
                 using var fontFace = new FontFace(font);
                 if (fontFace.Index == fontIndex)
-                    return new(FontIdent.FromFile(path, fontIndex), atlas, factory, font, sizePx);
+                    return new(FontIdent.FromFile(path, fontIndex), atlas, fallbackFont, factory, font, sizePx);
             }
         }
 
@@ -121,6 +124,7 @@ internal class DirectWriteDynamicFont : DynamicFont {
 
     public static DirectWriteDynamicFont FromMemory(
         DynamicFontAtlas atlas,
+        DynamicFont? fallbackFont,
         string name,
         Memory<byte> streamOpener,
         int fontIndex,
@@ -134,8 +138,15 @@ internal class DirectWriteDynamicFont : DynamicFont {
             foreach (var j in Enumerable.Range(0, family.FontCount)) {
                 using var font = family.GetFont(j);
                 using var fontFace = new FontFace(font);
-                if (fontFace.Index == fontIndex)
-                    return new(customIdent ?? FontIdent.FromNamedBytes(name, fontIndex), atlas, factory, font, sizePx);
+                if (fontFace.Index == fontIndex) {
+                    return new(
+                        customIdent ?? FontIdent.FromNamedBytes(name, fontIndex),
+                        atlas,
+                        fallbackFont,
+                        factory,
+                        font,
+                        sizePx);
+                }
             }
         }
 

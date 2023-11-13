@@ -9,8 +9,12 @@ using ImGuiNET;
 namespace DynamicFontAtlasLib.Internal.DynamicFonts;
 
 internal unsafe class ScaledDynamicFont : DynamicFont {
-    public ScaledDynamicFont(DynamicFontAtlas atlas, DynamicFont src, float scale)
-        : base(atlas, (BitArray)src.LoadAttemptedGlyphs.Clone()) {
+    public ScaledDynamicFont(
+        DynamicFontAtlas atlas,
+        DynamicFont? fallbackFont,
+        DynamicFont src,
+        float scale)
+        : base(atlas, fallbackFont, (BitArray)src.LoadAttemptedGlyphs.Clone()) {
         this.BaseFont = src;
         this.IndexedHotData.Clear();
         this.FrequentKerningPairs.Clear();

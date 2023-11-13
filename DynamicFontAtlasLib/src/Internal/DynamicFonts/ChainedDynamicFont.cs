@@ -14,10 +14,11 @@ internal unsafe class ChainedDynamicFont : DynamicFont {
 
     public ChainedDynamicFont(
         DynamicFontAtlas atlas,
+        DynamicFont? fallbackFont,
         in FontChain chain,
         IEnumerable<DynamicFont> subfonts,
         float globalScale)
-        : base(atlas, null) {
+        : base(atlas, fallbackFont, null) {
         this.globalScale = globalScale;
         this.Chain = chain;
         this.Subfonts = subfonts.ToImmutableList();
@@ -49,6 +50,7 @@ internal unsafe class ChainedDynamicFont : DynamicFont {
                 .OrderBy(x => x.Right)
                 .ThenBy(x => x.Left)
                 .ToArray());
+
         this.KerningPairs.EnsureCapacity(rawDistances.Length);
         this.ReplaceKerningPairs(rawDistances);
     }
@@ -137,16 +139,25 @@ internal unsafe class ChainedDynamicFont : DynamicFont {
         if (sourceGlyph is null)
             return false;
 
+        var glyphScale = 1f;
         if (this.Chain.GlyphRatio > 0) {
             var expectedWidth = this.Chain.PrimaryFont.SizePx * this.globalScale * this.Chain.GlyphRatio;
             if (expectedWidth < sourceGlyph->AdvanceX) {
                 var adjustedFontSizePx = (int)MathF.Floor(entry.SizePx * expectedWidth / sourceGlyph->AdvanceX);
-                var font2 = this.Atlas.GetDynamicFont(entry.Ident, adjustedFontSizePx);
-                font2.LoadGlyphs(c);
-                var sourceGlyph2 = font2.FindLoadedGlyphNoFallback(c);
-                if (sourceGlyph2 != null) {
-                    sourceGlyph = sourceGlyph2;
-                    font = font2;
+                var font2Task = this.Atlas.GetFontTask(entry.Ident, adjustedFontSizePx);
+                font2Task.Wait();
+                if (font2Task.IsCompletedSuccessfully) {
+                    var font2 = font2Task.Result;
+                    font2.LoadGlyphs(c);
+                    var sourceGlyph2 = font2.FindLoadedGlyphNoFallback(c);
+                    if (sourceGlyph2 != null) {
+                        sourceGlyph = sourceGlyph2;
+                        font = font2;
+                    } else {
+                        glyphScale = expectedWidth / sourceGlyph->AdvanceX;
+                    }
+                } else {
+                    glyphScale = expectedWidth / sourceGlyph->AdvanceX;
                 }
             }
         }
@@ -160,19 +171,37 @@ internal unsafe class ChainedDynamicFont : DynamicFont {
                     FontChainVerticalAlignment.Middle => (this.Subfonts[0].Font.FontSize - font.Font.FontSize) / 2,
                     FontChainVerticalAlignment.Baseline => this.Subfonts[0].Font.Ascent - font.Font.Ascent,
                     FontChainVerticalAlignment.Bottom => this.Subfonts[0].Font.FontSize - font.Font.FontSize,
-                    _ => throw new ArgumentOutOfRangeException()
+                    _ => throw new InvalidOperationException(),
                 }
                 + (this.Chain.PrimaryFont.SizePx * this.globalScale * (this.Chain.LineHeight - 1f) / 2)));
 
+        var xy0 = sourceGlyph->XY0;
+        var xy1 = sourceGlyph->XY1;
+        // ReSharper disable once CompareOfFloatsByEqualityOperator
+        if (glyphScale != 1f) {
+            xy0.X *= glyphScale;
+            xy1.X *= glyphScale;
+            var baseY = this.Chain.VerticalAlignment switch {
+                FontChainVerticalAlignment.Top => 0f,
+                FontChainVerticalAlignment.Middle => this.Subfonts[0].Font.FontSize / 2f,
+                FontChainVerticalAlignment.Baseline => this.Subfonts[0].Font.Ascent,
+                FontChainVerticalAlignment.Bottom => this.Subfonts[0].Font.FontSize,
+                _ => throw new InvalidOperationException(),
+            };
+
+            xy0.Y = ((xy0.Y - baseY) * glyphScale) + baseY;
+            xy1.Y = ((xy1.Y - baseY) * glyphScale) + baseY;
+        }
+
         var glyph = new ImFontGlyphReal {
-            AdvanceX = sourceGlyph->AdvanceX + entry.LetterSpacing,
+            AdvanceX = MathF.Round(sourceGlyph->AdvanceX * glyphScale) + entry.LetterSpacing,
             Codepoint = c,
             Colored = sourceGlyph->Colored,
             TextureIndex = sourceGlyph->TextureIndex,
             Visible = sourceGlyph->Visible,
             UV = sourceGlyph->UV,
-            XY0 = sourceGlyph->XY0 + offsetVector2,
-            XY1 = sourceGlyph->XY1 + offsetVector2,
+            XY0 = xy0 + offsetVector2,
+            XY1 = xy1 + offsetVector2,
         };
 
         if (this.Chain.GlyphRatio > 0) {

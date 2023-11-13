@@ -14,8 +14,9 @@ namespace DynamicFontAtlasLib.Internal.DynamicFonts;
 internal abstract unsafe class DynamicFont : IDisposable {
     protected const int FrequentKerningPairsMaxCodepoint = 128;
 
-    protected DynamicFont(DynamicFontAtlas atlas, BitArray? loadAttemptedGlyphs) {
+    protected DynamicFont(DynamicFontAtlas atlas, DynamicFont? fallbackFont, BitArray? loadAttemptedGlyphs) {
         this.Atlas = atlas;
+        this.FallbackFont = fallbackFont;
         this.FontNative = ImGuiNative.ImFont_ImFont();
         this.IndexedHotData = new(&this.FontNative->IndexedHotData, null);
         this.FrequentKerningPairs = new(&this.FontNative->FrequentKerningPairs, null);
@@ -33,9 +34,13 @@ internal abstract unsafe class DynamicFont : IDisposable {
 
     public DynamicFontAtlas Atlas { get; }
 
+    public DynamicFont? FallbackFont { get; }
+
     public ref ImFont Font => ref *this.FontNative;
 
     public ImFontPtr FontPtr => new(this.FontNative);
+
+    public nint FontIntPtr => (nint)this.FontNative;
 
     public ImVectorWrapper<float> FrequentKerningPairs { get; }
 
@@ -112,10 +117,12 @@ internal abstract unsafe class DynamicFont : IDisposable {
             this.LoadAttemptedGlyphs[codepoint] = true;
             return false;
         }
-
-        var fallbackFont = this.Atlas.GetDynamicFont(fi, (int)MathF.Round(this.Font.FontSize));
-
+        
         this.LoadAttemptedGlyphs[codepoint] = true;
+        
+        //var fallbackFont = this.Atlas.GetFontTask(fi, (int)MathF.Round(this.Font.FontSize));
+        if (this.FallbackFont is not { } fallbackFont)
+            return false;
 
         fallbackFont.LoadGlyphs(codepoint);
         var glyphPointer = fallbackFont.FindLoadedGlyphNoFallback(codepoint);

@@ -13,10 +13,11 @@ namespace DynamicFontAtlasLib.Internal.DynamicFonts;
 internal unsafe class AxisDynamicFont : DynamicFont {
     public AxisDynamicFont(
         DynamicFontAtlas atlas,
+        DynamicFont? fallbackFont,
         GameFontStyle fontStyle,
         FdtReader fdt,
         IReadOnlyList<int> textureIndices)
-        : base(atlas, null) {
+        : base(atlas, fallbackFont, null) {
         this.FontStyle = fontStyle;
         var fdtTexSize = new Vector4(
             fdt.FontHeader.TextureWidth,
