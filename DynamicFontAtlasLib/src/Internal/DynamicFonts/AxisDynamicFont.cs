@@ -4,7 +4,6 @@ using System.Linq;
 using System.Numerics;
 using System.Text.Unicode;
 using Dalamud.Interface.GameFonts;
-using DynamicFontAtlasLib.FontIdentificationStructs;
 using DynamicFontAtlasLib.Internal.Utilities.ImGuiUtilities;
 using ImGuiNET;
 

@@ -182,13 +182,3 @@ public interface IDynamicFontAtlas : IDisposable {
     /// <remarks>This function is thread safe.</remarks>
     void UpdateTextures(bool forceUpdate);
 }
-
-public enum PushFontMode {
-    Default,
-    Ignore,
-    HeightPlaceholder,
-    OptionalFallback,
-    OptionalHeightPlaceholderFallback,
-    RequiredFallback,
-    Wait,
-}

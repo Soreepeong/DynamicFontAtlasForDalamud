@@ -3,7 +3,6 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.Unicode;
-using DynamicFontAtlasLib.FontIdentificationStructs;
 using ImGuiNET;
 
 namespace DynamicFontAtlasLib.Internal.DynamicFonts;
