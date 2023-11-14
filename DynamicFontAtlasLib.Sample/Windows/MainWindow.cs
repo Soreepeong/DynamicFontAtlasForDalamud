@@ -195,10 +195,11 @@ public class MainWindow : Window, IDisposable {
                     var entry = this.systemEntries[i];
                     using (var font = this.atlas.PushFontScoped(entry, this.fontSize)) {
                         var s = font switch {
-                            {IsLoading: true} => $"{entry} [Loading]",
-                            {IsFailed: true} => $"{entry} [Fail]",
+                            { IsLoading: true } => $"{entry} [Loading]",
+                            { IsFailed: true } => $"{entry} [Fail]",
                             _ => $"{entry}: {this.buffer}",
                         };
+
                         this.atlas.LoadGlyphs(s);
                         ImGui.TextUnformatted(s);
                     }

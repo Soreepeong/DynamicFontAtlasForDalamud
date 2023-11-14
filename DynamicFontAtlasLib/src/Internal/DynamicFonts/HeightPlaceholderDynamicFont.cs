@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Text.Unicode;
 
-namespace DynamicFontAtlasLib.Internal.DynamicFonts; 
+namespace DynamicFontAtlasLib.Internal.DynamicFonts;
 
 internal class HeightPlaceholderDynamicFont : DynamicFont {
     public HeightPlaceholderDynamicFont(DynamicFontAtlas atlas, int sizePx)
@@ -23,7 +23,7 @@ internal class HeightPlaceholderDynamicFont : DynamicFont {
 
     public override bool IsCharAvailable(char c) => c == ' ';
 
-    public override void LoadGlyphs(IEnumerable<char> chars) {}
+    public override void LoadGlyphs(IEnumerable<char> chars) { }
 
-    public override void LoadGlyphs(IEnumerable<UnicodeRange> ranges) {}
+    public override void LoadGlyphs(IEnumerable<UnicodeRange> ranges) { }
 }

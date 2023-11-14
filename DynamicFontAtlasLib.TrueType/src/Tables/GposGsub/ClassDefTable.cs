@@ -39,11 +39,11 @@ public readonly struct ClassDefTable {
             this.Memory[4..].As<ClassRangeRecord>(this.ClassRangeCount),
             ClassRangeRecord.ReverseEndianness);
 
-        public struct ClassRangeRecord  : IComparable<ClassRangeRecord> {
+        public struct ClassRangeRecord : IComparable<ClassRangeRecord> {
             public ushort StartGlyphId;
             public ushort EndGlyphId;
             public ushort Class;
-        
+
             public int CompareTo(ClassRangeRecord other) => this.EndGlyphId.CompareTo(other.EndGlyphId);
 
             public bool ContainsGlyph(ushort glyphId) =>
@@ -70,19 +70,19 @@ public readonly struct ClassDefTable {
                 break;
             }
 
-            case 2:
-            {
-                foreach(var range in this.Format2.ClassValueArray) {
+            case 2: {
+                foreach (var range in this.Format2.ClassValueArray) {
                     var @class = range.Class;
                     var startId = range.StartGlyphId;
                     var count = range.EndGlyphId - startId + 1;
                     for (var i = 0; i < count; i++)
                         yield return (@class, (ushort)(startId + i));
                 }
+
                 break;
             }
         }
-    } 
+    }
 
     [Pure]
     public ushort GetClass(ushort glyphId) {
@@ -96,8 +96,7 @@ public readonly struct ClassDefTable {
                 break;
             }
 
-            case 2:
-            {
+            case 2: {
                 var rangeSpan = this.Format2.ClassValueArray;
                 var i = rangeSpan.BinarySearch(new Format2ClassRanges.ClassRangeRecord { EndGlyphId = glyphId });
                 if (i >= 0 && rangeSpan[i].ContainsGlyph(glyphId))

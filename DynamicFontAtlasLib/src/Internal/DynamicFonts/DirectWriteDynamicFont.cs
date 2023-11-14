@@ -87,14 +87,26 @@ internal class DirectWriteDynamicFont : DynamicFont {
         string name,
         FontVariant variant,
         float sizePx) {
-        using var factory = new Factory();
-        using var collection = factory.GetSystemFontCollection(false);
-        if (!collection.FindFamilyName(name, out var fontFamilyIndex))
-            throw new FileNotFoundException("Corresponding font family not found");
+        using var fset = atlas.Cache.GetScoped(
+            (name, variant),
+            () => {
+                using var factory = new Factory();
+                using var collection = factory.GetSystemFontCollection(false);
+                if (!collection.FindFamilyName(name, out var fontFamilyIndex))
+                    throw new FileNotFoundException("Corresponding font family not found");
 
-        using var fontFamily = collection.GetFontFamily(fontFamilyIndex);
-        using var font = fontFamily.GetFirstMatchingFont(variant.Weight, variant.Stretch, variant.Style);
-        return new(FontIdent.FromSystem(name, variant), atlas, fallbackFont, factory, font, sizePx);
+                using var fontFamily = collection.GetFontFamily(fontFamilyIndex);
+                using var font = fontFamily.GetFirstMatchingFont(variant.Weight, variant.Stretch, variant.Style);
+                return Tuple.Create(factory.QueryInterface<Factory>(), font.QueryInterface<Font>()).AsDisposable();
+            });
+
+        return new(
+            FontIdent.FromSystem(name, variant),
+            atlas,
+            fallbackFont,
+            fset.Item.Tuple.Item1,
+            fset.Item.Tuple.Item2,
+            sizePx);
     }
 
     public static DirectWriteDynamicFont FromFile(
@@ -103,51 +115,80 @@ internal class DirectWriteDynamicFont : DynamicFont {
         string path,
         int fontIndex,
         float sizePx) {
-        using var factory = new Factory();
-        using var loader = new MemoryFontLoader(factory, File.ReadAllBytes(path));
-        using var col = new FontCollection(factory, loader, loader.Key);
-        foreach (var i in Enumerable.Range(0, col.FontFamilyCount)) {
-            using var family = col.GetFontFamily(i);
-            foreach (var j in Enumerable.Range(0, family.FontCount)) {
-                using var font = family.GetFont(j);
-                using var fontFace = new FontFace(font);
-                if (fontFace.Index == fontIndex)
-                    return new(FontIdent.FromFile(path, fontIndex), atlas, fallbackFont, factory, font, sizePx);
-            }
-        }
+        using var fset = atlas.Cache.GetScoped(
+            (path, fontIndex),
+            () => {
+                using var factory = new Factory();
+                using var loader = new MemoryFontLoader(factory, File.ReadAllBytes(path));
+                using var col = new FontCollection(factory, loader, loader.Key);
+                foreach (var i in Enumerable.Range(0, col.FontFamilyCount)) {
+                    using var family = col.GetFontFamily(i);
+                    foreach (var j in Enumerable.Range(0, family.FontCount)) {
+                        using var font = family.GetFont(j);
+                        using var fontFace = new FontFace(font);
+                        if (fontFace.Index == fontIndex) {
+                            return Tuple.Create(factory.QueryInterface<Factory>(), font.QueryInterface<Font>())
+                                .AsDisposable();
+                        }
+                    }
+                }
 
-        throw new IndexOutOfRangeException();
+                throw new IndexOutOfRangeException();
+            });
+
+        return new(
+            FontIdent.FromFile(path, fontIndex),
+            atlas,
+            fallbackFont,
+            fset.Item.Tuple.Item1,
+            fset.Item.Tuple.Item2,
+            sizePx);
     }
 
     public static DirectWriteDynamicFont FromMemory(
         DynamicFontAtlas atlas,
         DynamicFont? fallbackFont,
         string name,
-        Memory<byte> streamOpener,
+        Memory<byte> data,
         int fontIndex,
         float sizePx,
         FontIdent? customIdent) {
-        using var factory = new Factory();
-        using var loader = new MemoryFontLoader(factory, streamOpener);
-        using var col = new FontCollection(factory, loader, loader.Key);
-        foreach (var i in Enumerable.Range(0, col.FontFamilyCount)) {
-            using var family = col.GetFontFamily(i);
-            foreach (var j in Enumerable.Range(0, family.FontCount)) {
-                using var font = family.GetFont(j);
-                using var fontFace = new FontFace(font);
-                if (fontFace.Index == fontIndex) {
-                    return new(
-                        customIdent ?? FontIdent.FromNamedBytes(name, fontIndex),
-                        atlas,
-                        fallbackFont,
-                        factory,
-                        font,
-                        sizePx);
-                }
-            }
-        }
+        using var fset = atlas.Cache.GetScoped(
+            customIdent ?? (object)(name, fontIndex),
+            () => {
+                using var factory = new Factory();
+                var loader = new MemoryFontLoader(factory, data);
+                try {
+                    using var col = new FontCollection(factory, loader, loader.Key);
+                    foreach (var i in Enumerable.Range(0, col.FontFamilyCount)) {
+                        using var family = col.GetFontFamily(i);
+                        foreach (var j in Enumerable.Range(0, family.FontCount)) {
+                            using var font = family.GetFont(j);
+                            using var fontFace = new FontFace(font);
+                            if (fontFace.Index == fontIndex) {
+                                return Tuple.Create(
+                                        factory.QueryInterface<Factory>(),
+                                        font.QueryInterface<Font>(),
+                                        loader)
+                                    .AsDisposable();
+                            }
+                        }
+                    }
 
-        throw new IndexOutOfRangeException();
+                    throw new IndexOutOfRangeException();
+                } catch {
+                    loader.Dispose();
+                    throw;
+                }
+            });
+
+        return new(
+            customIdent ?? FontIdent.FromNamedBytes(name, fontIndex),
+            atlas,
+            fallbackFont,
+            fset.Item.Tuple.Item1,
+            fset.Item.Tuple.Item2,
+            sizePx);
     }
 
     /// <inheritdoc/>
@@ -393,7 +434,7 @@ internal class DirectWriteDynamicFont : DynamicFont {
                 out var cmapContext)) {
             return Array.Empty<(char, char, short)>();
         }
-        
+
         disposeStack.Add(() => face.ReleaseFontTable(cmapContext));
         var cmap = new Cmap(cmapTable.ToPointerSpan());
         if (cmap.UnicodeTable is not { } unicodeTable)

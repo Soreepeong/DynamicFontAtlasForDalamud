@@ -23,7 +23,7 @@ public interface IDynamicFontAtlas : IDisposable {
     /// Gets or sets the default action to take when PushFontScoped encountered a font that has failed to load.
     /// </summary>
     PushFontMode DefaultPushFontErrorMode { get; set; }
-    
+
     /// <summary>
     /// Gets or sets the default action to take when PushFontScoped encountered a font that is being loaded.
     /// </summary>

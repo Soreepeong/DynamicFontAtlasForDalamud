@@ -5,7 +5,8 @@ namespace DynamicFontAtlasLib.TrueType.CommonStructs;
 
 public static partial class PointerSpan {
     public delegate int BinarySearchComparer<T>(in T value);
-    public static IDisposable CreatePointerSpan<T>(this T[] data, out PointerSpan<T> pointerSpan) 
+
+    public static IDisposable CreatePointerSpan<T>(this T[] data, out PointerSpan<T> pointerSpan)
         where T : unmanaged {
         var gchandle = GCHandle.Alloc(data, GCHandleType.Pinned);
         pointerSpan = new(gchandle.AddrOfPinnedObject(), data.Length);

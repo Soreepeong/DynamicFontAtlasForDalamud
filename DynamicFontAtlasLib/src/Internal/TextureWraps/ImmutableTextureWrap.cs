@@ -51,7 +51,6 @@ internal sealed unsafe class ImmutableTextureWrap : IDalamudTextureWrap {
         var (dxgiFormat, conversion) = TexFile.GetDxgiFormatFromTextureFormat(header.Format, false);
         if (conversion != TexFile.DxgiFormatConversion.NoConversion
             || !device.CheckFormatSupport((Format)dxgiFormat).HasFlag(FormatSupport.Texture2D)) {
-            
             var buffer = TextureBuffer.FromStream(header, reader);
             buffer = buffer.Filter(0, 0, header.Format = TexFile.TextureFormat.B8G8R8A8);
             dxgiFormat = (int)Format.B8G8R8A8_UNorm;
@@ -62,7 +61,7 @@ internal sealed unsafe class ImmutableTextureWrap : IDalamudTextureWrap {
         var pitch = (header.Format & (TexFile.TextureFormat.TypeBc123 | TexFile.TextureFormat.TypeBc57)) != 0
             ? Math.Max(1, (header.Width + 3) / 4) * 2 * bpp
             : ((header.Width * bpp) + 7) / 8;
-        
+
         fixed (void* pData = dataSpan)
             return new(device, (nint)pData, header.Width, pitch, header.Height, (Format)dxgiFormat);
     }

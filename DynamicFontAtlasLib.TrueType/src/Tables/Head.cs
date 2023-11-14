@@ -15,7 +15,7 @@ public struct Head {
     public Head(SfntFile file) : this(file[DirectoryTableTag]) { }
 
     public Head(PointerSpan<byte> memory) => this.Memory = memory;
-    
+
     public Fixed Version => new(this.Memory);
     public Fixed FontRevision => new(this.Memory[4..]);
     public uint ChecksumAdjustment => this.Memory.ReadU32Big(8);

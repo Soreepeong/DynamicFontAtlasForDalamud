@@ -39,10 +39,10 @@ public static class DynamicFontAtlasFactory {
         IDataManager dataManager,
         IDynamicFontAtlasCache cache) =>
         CreateAtlas(
-                new(((dynamic)pluginInterface.UiBuilder).Device.NativePointer),
-                pluginInterface.DalamudAssetDirectory,
-                path => Task.Run(() => dataManager.GetFile(path)?.Data ?? throw new FileNotFoundException()),
-                cache);
+            new(((dynamic)pluginInterface.UiBuilder).Device.NativePointer),
+            pluginInterface.DalamudAssetDirectory,
+            path => Task.Run(() => dataManager.GetFile(path)?.Data ?? throw new FileNotFoundException()),
+            cache);
 
     /// <summary>
     /// Creates an instance of the default implementation of <see cref="IDynamicFontAtlasCache"/>.

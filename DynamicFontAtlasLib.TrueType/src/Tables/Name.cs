@@ -27,19 +27,20 @@ public struct Name {
         this.Memory[6..].As<NameRecord>(this.Count),
         NameRecord.ReverseEndianness);
 
-    public ushort LanguageCount => this.Version == 0 ? (ushort)0 : this.Memory.ReadU16Big(6 + this.NameRecords.NumBytes);
+    public ushort LanguageCount =>
+        this.Version == 0 ? (ushort)0 : this.Memory.ReadU16Big(6 + this.NameRecords.NumBytes);
 
     public BigEndianPointerSpan<LanguageRecord> LanguageRecords => this.Version == 0
         ? default
         : new(
             this.Memory[(8 + this.NameRecords.NumBytes)..].As<LanguageRecord>(this.LanguageCount),
             LanguageRecord.ReverseEndianness);
-    
+
     public PointerSpan<byte> Storage => this.Memory[this.StorageOffset..];
 
     public string this[in NameRecord record] =>
         record.PlatformAndEncoding.Decode(this.Storage.Span.Slice(record.StringOffset, record.Length));
-    
+
     public string this[in LanguageRecord record] =>
         Encoding.ASCII.GetString(this.Storage.Span.Slice(record.LanguageTagOffset, record.Length));
 
@@ -74,7 +75,7 @@ public struct Name {
 
         public LanguageRecord(PointerSpan<byte> span) {
             var offset = 0;
-            span.ReadBig(ref offset, out this.Length); 
+            span.ReadBig(ref offset, out this.Length);
             span.ReadBig(ref offset, out this.LanguageTagOffset);
         }
 

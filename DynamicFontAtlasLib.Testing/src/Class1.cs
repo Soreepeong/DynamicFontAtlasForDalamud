@@ -45,9 +45,9 @@ public static class Class1 {
 
         var distGpos = Array.Empty<KerningPair>();
         var distKern = Array.Empty<KerningPair>();
-        (char Left, char Right, short Value)[] distGposCodepoints = Array.Empty<(char,char,short)>();
-        (char Left, char Right, short Value)[] distKernCodepoints = Array.Empty<(char,char,short)>();
-        
+        (char Left, char Right, short Value)[] distGposCodepoints = Array.Empty<(char, char, short)>();
+        (char Left, char Right, short Value)[] distKernCodepoints = Array.Empty<(char, char, short)>();
+
         if (sfnt.ContainsKey(Gpos.DirectoryTableTag)) {
             var gpos = new Gpos(sfnt);
             distGpos = gpos.ExtractAdvanceX().ToArray();
@@ -58,7 +58,7 @@ public static class Class1 {
                     .Select(rc => (x.Left, Right: (char)rc, x.Value)))
                 .ToArray();
         }
-        
+
         if (sfnt.ContainsKey(Kern.DirectoryTableTag)) {
             var kern = new Kern(sfnt);
             distKern = kern.EnumerateHorizontalPairs().ToArray();

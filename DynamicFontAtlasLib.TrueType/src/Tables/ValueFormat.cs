@@ -10,7 +10,7 @@ public enum ValueFormat : ushort {
     PlacementDeviceOffsetY = 1 << 5,
     AdvanceDeviceOffsetX = 1 << 6,
     AdvanceDeviceOffsetY = 1 << 7,
-    
+
     ValidBits = PlacementX | PlacementY
         | AdvanceX | AdvanceY
         | PlacementDeviceOffsetX | PlacementDeviceOffsetY

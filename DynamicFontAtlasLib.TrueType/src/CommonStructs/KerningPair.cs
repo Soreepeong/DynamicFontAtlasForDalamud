@@ -20,7 +20,8 @@ public struct KerningPair : IEquatable<KerningPair> {
         this.Value = value;
     }
 
-    public bool Equals(KerningPair other) => this.Left == other.Left && this.Right == other.Right && this.Value == other.Value;
+    public bool Equals(KerningPair other) =>
+        this.Left == other.Left && this.Right == other.Right && this.Value == other.Value;
 
     public override bool Equals(object? obj) => obj is KerningPair other && Equals(other);
 

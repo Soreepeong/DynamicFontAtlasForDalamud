@@ -58,8 +58,7 @@ internal sealed class DynamicFontAtlas : IDynamicFontAtlas {
             this.dalamudAssetDirectory = dalamudAssetDirectory;
 
             this.pAtlas = ImGuiNative.ImFontAtlas_ImFontAtlas();
-            this.disposeStack.Add(() =>
-            {
+            this.disposeStack.Add(() => {
                 ImGuiNative.ImFontAtlas_destroy(this.pAtlas);
                 this.pAtlas = null;
             });
@@ -340,8 +339,7 @@ internal sealed class DynamicFontAtlas : IDynamicFontAtlas {
 
             this.fontLock.EnterWriteLock();
             writeLockEntered = true;
-            return this.fontEntries[(identCopy, sizePx)] = Task.Run<DynamicFont>(async () =>
-            {
+            return this.fontEntries[(identCopy, sizePx)] = Task.Run<DynamicFont>(async () => {
                 switch (identCopy) {
                     case { Game: not GameFontFamily.Undefined }: {
                         var gfs = new GameFontStyle(
@@ -392,7 +390,7 @@ internal sealed class DynamicFontAtlas : IDynamicFontAtlas {
                         return DirectWriteDynamicFont.FromMemory(
                             this,
                             null,
-                            string.Empty,
+                            bf.ToString(),
                             await dataTask.AsStarted(),
                             0,
                             sizePx,
@@ -417,8 +415,7 @@ internal sealed class DynamicFontAtlas : IDynamicFontAtlas {
                     default:
                         throw new ArgumentException("Invalid identifier specification", nameof(identCopy));
                 }
-            }).ContinueWith(result =>
-            {
+            }).ContinueWith(result => {
                 this.fontLock.EnterWriteLock();
                 try {
                     var font = result.Result;
@@ -469,8 +466,7 @@ internal sealed class DynamicFontAtlas : IDynamicFontAtlas {
 
             this.fontLock.EnterWriteLock();
             writeLockEntered = true;
-            return this.fontChains[(chain, scale)] = Task.Run<DynamicFont>(async () =>
-            {
+            return this.fontChains[(chain, scale)] = Task.Run<DynamicFont>(async () => {
                 var fallbackFont = noFallback
                     ? null
                     : await this.GetFallbackFontTask(chainCopy.PrimaryFont.SizePx);
@@ -481,8 +477,7 @@ internal sealed class DynamicFontAtlas : IDynamicFontAtlas {
                         .Select(entry => this.GetFontTask(entry.Ident, (int)MathF.Round(entry.SizePx * scale))));
 
                 return new ChainedDynamicFont(this, fallbackFont, chainCopy, subfonts, scale);
-            }).ContinueWith(result =>
-            {
+            }).ContinueWith(result => {
                 this.fontLock.EnterWriteLock();
                 try {
                     var font = result.Result;
@@ -581,8 +576,8 @@ internal sealed class DynamicFontAtlas : IDynamicFontAtlas {
         if (this.IsDisposed)
             throw new ObjectDisposedException(nameof(DynamicFontAtlas));
 
-        Task.WaitAll(this.fontEntries.Values.Concat(this.fontChains.Values).Select(e => e.ContinueWith(r =>
-        {
+        Task.WaitAll(this.fontEntries.Values.Concat(this.fontChains.Values).Select(e => e.ContinueWith(r => {
+            _ = r.Exception;
             if (r.IsCompletedSuccessfully)
                 r.Result.Dispose();
         })).ToArray());
@@ -688,8 +683,7 @@ internal sealed class DynamicFontAtlas : IDynamicFontAtlas {
 
     private async Task<int[]> LoadGameFontTextures(string format, int count) {
         var textures = await Task.WhenAll(Enumerable.Range(1, count)
-            .Select(async i =>
-            {
+            .Select(async i => {
                 var texPath = string.Format(format, i);
                 return new CachedDalamudTextureWrap(await this.Cache.GetScopedAsync(
                     texPath,
@@ -700,8 +694,7 @@ internal sealed class DynamicFontAtlas : IDynamicFontAtlas {
 
         this.fontLock.EnterWriteLock();
         try {
-            return textures.Select(texture =>
-            {
+            return textures.Select(texture => {
                 for (var i = 0; i < this.TextureWraps.Count; i++) {
                     if (this.TextureWraps[i].ImGuiHandle == texture.ImGuiHandle) {
                         texture.Dispose();

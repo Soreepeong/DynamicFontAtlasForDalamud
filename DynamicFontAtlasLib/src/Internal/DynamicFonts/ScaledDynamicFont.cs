@@ -21,7 +21,7 @@ internal unsafe class ScaledDynamicFont : DynamicFont {
         this.IndexLookup.Clear();
         this.Glyphs.Clear();
         this.KerningPairs.Clear();
-        
+
         this.IndexedHotData.AddRange(src.IndexedHotData);
         this.FrequentKerningPairs.AddRange(src.FrequentKerningPairs);
         this.IndexLookup.AddRange(src.IndexLookup);

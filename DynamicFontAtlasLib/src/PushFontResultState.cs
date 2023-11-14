@@ -8,12 +8,12 @@ public enum PushFontResultState {
     /// The <see cref="PushFontResult"/> contains nothing.
     /// </summary>
     Empty,
-    
+
     /// <summary>
     /// The <see cref="PushFontResult"/> contains fallback font.
     /// </summary>
     Fallback,
-    
+
     /// <summary>
     /// The <see cref="PushFontResult"/> contains placeholder font.
     /// </summary>

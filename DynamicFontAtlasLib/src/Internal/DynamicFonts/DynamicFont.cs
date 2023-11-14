@@ -13,7 +13,7 @@ namespace DynamicFontAtlasLib.Internal.DynamicFonts;
 
 internal abstract unsafe class DynamicFont : IDisposable {
     protected const int FrequentKerningPairsMaxCodepoint = 128;
-    
+
     private float lastFallbackHotDataAdvanceX = 0f;
     private float lastFallbackHotDataOccupiedWidth = 0f;
     private int lastFallbackHotDataLength = 0;
@@ -114,7 +114,7 @@ internal abstract unsafe class DynamicFont : IDisposable {
             return false;
 
         this.LoadAttemptedGlyphs[codepoint] = true;
-        
+
         //var fallbackFont = this.Atlas.GetFontTask(fi, (int)MathF.Round(this.Font.FontSize));
         if (this.FallbackFont is not { } fallbackFont)
             return false;
@@ -204,6 +204,7 @@ internal abstract unsafe class DynamicFont : IDisposable {
         this.KerningPairs.Clear();
         foreach (ref var ihd in this.IndexedHotData.AsSpan)
             ihd.KerningPairInfo = 0u;
+
         this.FrequentKerningPairs.AsSpan.Clear();
         foreach (var pair in sortedPairs) {
             if (pair is { Left: < FrequentKerningPairsMaxCodepoint, Right: < FrequentKerningPairsMaxCodepoint }) {
@@ -219,7 +220,7 @@ internal abstract unsafe class DynamicFont : IDisposable {
             }
 
             this.KerningPairs.Add(pair);
-            
+
             this.EnsureIndex(pair.Right);
             ref var rhd = ref this.IndexedHotData[pair.Right];
             var count = rhd.Count;
@@ -234,7 +235,7 @@ internal abstract unsafe class DynamicFont : IDisposable {
             if (count == 32)
                 rhd.UseBisect = true;
         }
-        
+
         this.UpdateReferencesToVectorItems();
     }
 }

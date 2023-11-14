@@ -147,7 +147,7 @@ public record struct FontIdent {
             using var family = collection.GetFontFamily(familyIndex);
             if (family.FontCount == 0 || familyExcludeTest?.Invoke(family) is true)
                 continue;
-            
+
             using var familyNames = family.FamilyNames;
             names.Clear();
             names.EnsureCapacity(familyNames.Count);
@@ -170,6 +170,7 @@ public record struct FontIdent {
                 using var font = family.GetFont(fontIndex);
                 if (fontExcludeTest?.Invoke(font) is true)
                     continue;
+
                 variants.Add(FromSystem(englishName, font.Weight, font.Stretch, font.Style));
             }
 
